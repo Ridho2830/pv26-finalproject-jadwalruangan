@@ -83,9 +83,9 @@ class StatusRuanganView(QMainWindow):
         self.timer.start(1000)
         
         # Tombol Login
-        login_btn = QPushButton("Login") # Tambahkan visual ikon kecil
+        login_btn = QPushButton("Login")
         login_btn.setObjectName("login_btn")
-        login_btn.setCursor(Qt.PointingHandCursor) # Tambahkan kursor jari
+        login_btn.setCursor(Qt.PointingHandCursor)
         
         # Alignment vertikal untuk elemen interaktif
         right_layout.addWidget(self.theme_btn, alignment=Qt.AlignVCenter)
@@ -226,7 +226,7 @@ class StatusRuanganView(QMainWindow):
             # Update hitungan status
             if status in counts:
                 counts[status] += 1
-            elif status in ("Tidak Tersedia", "Maintenance"):
+            elif status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
                 counts["Nonaktif"] += 1
             elif status in ("Dosen",):
                 counts["Terbooking"] += 1
@@ -273,47 +273,80 @@ class StatusRuanganView(QMainWindow):
             self.canvas_layout.addWidget(empty_title, 1, 0)
             self.canvas_layout.addWidget(empty_desc, 2, 0)
         
-        # Buat kartu: Nama + Badge + Info Detail + CTA
+        # Buat kartu: Sesuai referensi gambar
         self.cards = []
+        import json
         for i, (name, status, badge_class) in enumerate(rooms):
             r = self.rooms_raw[i]
             kapasitas = r.get('kapasitas', 0)
-            fasilitas = r.get('fasilitas', '-')
             gedung = r.get('gedung', '-')
             lantai = r.get('lantai', '-')
+            # Data dummy jika di database masih kosong (NULL)
+
+            fasilitas_raw = r.get('fasilitas') or r.get('fasilitas_list')
+            fasilitas_list = []
+            
+            if fasilitas_raw:
+                if isinstance(fasilitas_raw, str):
+                    try:
+                        fasilitas_list = json.loads(fasilitas_raw)
+                        if not isinstance(fasilitas_list, list):
+                            fasilitas_list = [str(fasilitas_list)]
+                    except:
+                        fasilitas_list = [f.strip() for f in fasilitas_raw.split(',') if f.strip()]
+                elif isinstance(fasilitas_raw, list):
+                    fasilitas_list = fasilitas_raw
+                else:
+                    fasilitas_list = [str(fasilitas_raw)]
+            
+            if not fasilitas_list:
+                fasilitas_list = ["-"]
             
             card = QFrame()
             card.setProperty("class", "room_card")
             card.setCursor(Qt.PointingHandCursor)
             card_layout = QVBoxLayout(card)
-            card_layout.setContentsMargins(16, 14, 16, 14)
-            card_layout.setSpacing(6)
+            card_layout.setContentsMargins(16, 16, 16, 16)
+            card_layout.setSpacing(12)
             
-            # Baris 1: Nama + Badge
-            top_layout = QHBoxLayout()
-            top_layout.setContentsMargins(0, 0, 0, 0)
+            # 1. Baris Atas: Nama + Badge
+            top_row = QHBoxLayout()
             title_lbl = QLabel(name)
-            title_lbl.setProperty("class", "room_title")
+            is_dark = theme_manager.is_dark
+            title_color = "#F9FAFB" if is_dark else "#1F2937"
+            title_lbl.setStyleSheet(f"font-size: 16px; font-weight: 800; color: {title_color}; background-color: transparent;")
             
-            badge_lbl = QLabel(status)
-            badge_lbl.setProperty("class", f"badge {badge_class}")
+            badge_lbl = QLabel(status.upper())
             badge_lbl.setAlignment(Qt.AlignCenter)
+            # Style badge sesuai gambar
+            if status == "Tersedia":
+                badge_lbl.setStyleSheet("background-color: #F0FDF4; color: #15803D; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 700;")
+            elif status == "Digunakan":
+                badge_lbl.setStyleSheet("background-color: #FEF2F2; color: #DC2626; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 700;")
+            else:
+                badge_lbl.setStyleSheet("background-color: #F3F4F6; color: #4B5563; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 700;")
+                
+            top_row.addWidget(title_lbl)
+            top_row.addStretch()
+            top_row.addWidget(badge_lbl)
+            card_layout.addLayout(top_row)
             
-            top_layout.addWidget(title_lbl)
-            top_layout.addStretch()
-            top_layout.addWidget(badge_lbl)
+            # 2. Subtitle
+            subtitle_lbl = QLabel(f"Gedung {gedung} • Lantai {lantai} • Kapasitas {kapasitas}")
+            subtitle_color = "#9CA3AF" if is_dark else "#6B7280"
+            subtitle_lbl.setStyleSheet(f"font-size: 12px; color: {subtitle_color}; background-color: transparent;")
+            card_layout.addWidget(subtitle_lbl)
             
-            # Kubus 3D (tengah)
+            # 3. Kubus 3D (Tengah)
             cube_color = "#22C55E"
             if status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
                 cube_color = "#9CA3AF"
             elif status == "Digunakan":
                 cube_color = "#EF4444"
             elif status in ("Terbooking", "Dosen"):
-                cube_color = "#4f378a"
+                cube_color = "#F59E0B"
                 
             cube_widget = CubeWidget(cube_color)
-            
             cube_container = QWidget()
             cube_container_layout = QHBoxLayout(cube_container)
             cube_container_layout.addStretch()
@@ -321,27 +354,21 @@ class StatusRuanganView(QMainWindow):
             cube_container_layout.addStretch()
             cube_container_layout.setContentsMargins(0, 8, 0, 8)
             cube_container.setStyleSheet("background-color: transparent;")
-            
-            # Detail info: Gedung, Lantai, Kapasitas
-            details_lbl = QLabel(f"📍 {gedung} · Lantai {lantai}  |  👥 {kapasitas} orang")
-            details_lbl.setProperty("class", "room_details")
-            details_lbl.setWordWrap(True)
-            
-            # Fasilitas
-            fas_lbl = QLabel(f"📦 {fasilitas}")
-            fas_lbl.setProperty("class", "room_details")
-            fas_lbl.setWordWrap(True)
-            
-            # CTA: ajakan login
-            cta_lbl = QLabel("🔒 Login untuk memesan ruangan ini")
-            cta_lbl.setProperty("class", "card_bottom_info")
-            cta_lbl.setAlignment(Qt.AlignCenter)
-            
-            card_layout.addLayout(top_layout)
             card_layout.addWidget(cube_container)
-            card_layout.addWidget(details_lbl)
-            card_layout.addWidget(fas_lbl)
-            card_layout.addWidget(cta_lbl)
+            
+            # 4. Chips Fasilitas
+            chips_row = QHBoxLayout()
+            chips_row.setSpacing(6)
+            for fas in fasilitas_list:
+                fas_lbl = QLabel(fas)
+                fas_lbl.setStyleSheet("background-color: #F3E8FF; color: #6B21A8; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 600;")
+                chips_row.addWidget(fas_lbl)
+            chips_row.addStretch()
+            card_layout.addLayout(chips_row)
+            
+
+            
+
             
             # Buat kartu bisa diklik → buka popup detail
             card.mousePressEvent = partial(self._on_card_clicked, index=i)
