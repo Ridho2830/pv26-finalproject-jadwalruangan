@@ -1,0 +1,319 @@
+/* ================================================
+   ReservasiKampus — Light Mode Premium
+   Palet: Lavender & Soft Purple
+   ================================================ */
+
+/* ── Global ──────────────────────────────────────── */
+QWidget {
+    font-family: 'Segoe UI', 'Helvetica', sans-serif;
+    background-color: #f8f5ff;
+    color: #1d1b2f;
+}
+
+QScrollBar:vertical {
+    background: #ede8f5;
+    width: 6px;
+    border-radius: 3px;
+}
+QScrollBar::handle:vertical {
+    background: #c4b5de;
+    border-radius: 3px;
+    min-height: 32px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #9b5de5;
+}
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: none;
+}
+
+/* ── Header ─────────────────────────────────────── */
+#header {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e0d8ed;
+    min-height: 64px;
+    max-height: 64px;
+}
+
+#header QLabel {
+    background-color: transparent;
+    color: #1d1b2f;
+}
+
+#header_title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #7c3aed;
+}
+
+#header_subtitle {
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b5e8a;
+}
+
+#header_time {
+    background-color: #f0ebfa;
+    border: 1px solid #d4c8e8;
+    border-radius: 8px;
+    padding: 5px 12px;
+    font-size: 12px;
+    color: #6b5e8a;
+}
+
+#login_btn {
+    border: 1px solid #c084fc;
+    color: #7c3aed;
+    border-radius: 8px;
+    padding: 6px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    background-color: transparent;
+}
+
+#login_btn:hover {
+    background-color: #f0ebfa;
+    border-color: #7c3aed;
+    color: #6d28d9;
+}
+
+#login_btn:pressed {
+    background-color: #e0d3f5;
+}
+
+/* ── Theme Toggle ────────────────────────────────── */
+#theme_toggle {
+    background-color: #f0ebfa;
+    border: 1px solid #d4c8e8;
+    border-radius: 14px;
+    padding: 4px 14px;
+    font-size: 16px;
+    color: #1d1b2f;
+    min-width: 36px;
+    max-height: 28px;
+}
+
+#theme_toggle:hover {
+    background-color: #e0d3f5;
+    border-color: #7c3aed;
+}
+
+/* ── Filter Section ──────────────────────────────── */
+#filter_section {
+    background-color: #ffffff;
+    border-bottom: 1px solid #e0d8ed;
+    padding: 12px 0px;
+}
+
+.stat_chip {
+    background-color: #f0ebfa;
+    border: 1px solid #d4c8e8;
+    border-radius: 20px;
+    padding: 4px 12px;
+}
+
+.stat_chip QLabel {
+    background-color: transparent;
+    color: #4a3e6a;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* ── Inputs & Comboboxes ─────────────────────────── */
+QLineEdit,
+QComboBox {
+    background-color: #ffffff;
+    border: 1px solid #d4c8e8;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    color: #1d1b2f;
+    selection-background-color: #c4b5de;
+}
+
+QLineEdit::placeholder {
+    color: #a99bc4;
+}
+
+QLineEdit:focus,
+QComboBox:focus {
+    border: 1px solid #7c3aed;
+    background-color: #faf8ff;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 20px;
+}
+
+QComboBox::down-arrow {
+    width: 10px;
+    height: 10px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #ffffff;
+    border: 1px solid #d4c8e8;
+    border-radius: 8px;
+    color: #1d1b2f;
+    selection-background-color: #e0d3f5;
+    outline: none;
+}
+
+/* ── Main Canvas ─────────────────────────────────── */
+#main_canvas {
+    background-color: #f8f5ff;
+    border: none;
+}
+
+#main_canvas > QWidget {
+    background-color: #f8f5ff;
+}
+
+/* ── Section Label ───────────────────────────────── */
+#section_label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #6b5e8a;
+    letter-spacing: 1.5px;
+    background-color: transparent;
+    padding: 0px;
+}
+
+/* ── Room Cards ──────────────────────────────────── */
+.room_card {
+    background-color: #ffffff;
+    border: 1px solid #e0d8ed;
+    border-radius: 14px;
+    padding: 12px;
+    min-width: 120px;
+    max-width: 340px;
+}
+
+.room_card:hover {
+    background-color: #faf8ff;
+    border: 1px solid #c084fc;
+}
+
+.room_title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1d1b2f;
+    background-color: transparent;
+}
+
+.room_details {
+    font-size: 11px;
+    color: #6b5e8a;
+    background-color: transparent;
+}
+
+.card_bottom_info {
+    font-size: 12px;
+    font-weight: 600;
+    color: #4a3e6a;
+    background-color: transparent;
+    padding-top: 4px;
+}
+
+
+/* ── Status Badges ───────────────────────────────── */
+.badge {
+    border-radius: 10px;
+    padding: 3px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+}
+
+.badge_available {
+    background-color: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    border: 1px solid rgba(16, 185, 129, 0.30);
+}
+
+.badge_in_use {
+    background-color: rgba(239, 68, 68, 0.10);
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.badge_booked {
+    background-color: rgba(124, 58, 237, 0.10);
+    color: #7c3aed;
+    border: 1px solid rgba(124, 58, 237, 0.25);
+}
+
+.badge_unavailable {
+    background-color: rgba(107, 114, 128, 0.10);
+    color: #6b7280;
+    border: 1px solid rgba(107, 114, 128, 0.20);
+}
+
+/* ── Footer ──────────────────────────────────────── */
+#footer {
+    background-color: #ffffff;
+    border-top: 1px solid #e0d8ed;
+    min-height: 40px;
+    max-height: 40px;
+}
+
+#footer QLabel {
+    color: #6b5e8a;
+    font-size: 11px;
+    background-color: transparent;
+}
+
+#footer_contact {
+    color: #4a3e6a;
+    font-size: 11px;
+    background-color: transparent;
+}
+
+/* ── Notification Banner ─────────────────────────── */
+#notif_banner {
+    background-color: rgba(245, 158, 11, 0.08);
+    border-top: 1px solid rgba(217, 119, 6, 0.30);
+    border-bottom: 1px solid rgba(217, 119, 6, 0.30);
+    min-height: 36px;
+}
+
+#notif_text {
+    color: #b45309;
+    font-size: 12px;
+    font-weight: 600;
+    background-color: transparent;
+}
+
+#dismiss_btn {
+    background-color: transparent;
+    border: 1px solid rgba(217, 119, 6, 0.30);
+    border-radius: 12px;
+    color: #b45309;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+#dismiss_btn:hover {
+    background-color: rgba(245, 158, 11, 0.15);
+}
+
+/* ── Sidebar ──────────────────────────────────────── */
+#sidebar {
+    background-color: #f3f0fa;
+    border-right: 1px solid #e1daee;
+}
+
+#sidebar QLabel {
+    background-color: transparent;
+}
+
+.stat_chip {
+    background-color: transparent;
+    border: none;
+}

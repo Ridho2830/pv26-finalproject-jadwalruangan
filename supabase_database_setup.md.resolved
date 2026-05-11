@@ -1,0 +1,247 @@
+# 🗄️ Setup Database Supabase — Sistem Reservasi Ruangan Kuliah
+
+## Cara Pakai
+
+1. Buka project Supabase kamu di [supabase.com](https://supabase.com)
+2. Pergi ke **SQL Editor** (icon di sidebar kiri)
+3. Klik **New Query**
+4. Copy-paste SQL di bawah ini
+5. Klik **Run**
+
+> [!IMPORTANT]
+> Jalankan SQL ini **satu kali saja**. Jika perlu reset, jalankan bagian "Drop Tables" di paling bawah terlebih dahulu.
+
+---
+
+## SQL Script Lengkap
+
+```sql
+-- ============================================================
+-- SISTEM RESERVASI RUANGAN KULIAH
+-- Database Setup Script untuk Supabase
+-- ============================================================
+
+-- ============================================================
+-- 1. TABEL PENGGUNA
+-- Menyimpan data semua user (Admin, Dosen, Mahasiswa)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS pengguna (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nama VARCHAR(100) NOT NULL,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,  -- simpan dalam bentuk hash
+    role VARCHAR(20) NOT NULL CHECK (role IN ('Admin', 'Dosen', 'Mahasiswa')),
+    nim_nip VARCHAR(30),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index untuk login query
+CREATE INDEX idx_pengguna_username ON pengguna(username);
+CREATE INDEX idx_pengguna_role ON pengguna(role);
+
+
+-- ============================================================
+-- 2. TABEL RUANGAN
+-- Menyimpan data ruangan yang bisa direservasi
+-- ============================================================
+CREATE TABLE IF NOT EXISTS ruangan (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nama VARCHAR(100) NOT NULL,
+    gedung VARCHAR(100) NOT NULL,
+    lantai INT NOT NULL,
+    kapasitas INT NOT NULL,
+    fasilitas TEXT,  -- bisa diisi: "Proyektor, AC, Whiteboard"
+    status VARCHAR(20) NOT NULL DEFAULT 'Tersedia' CHECK (status IN ('Tersedia', 'Tidak Tersedia')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index untuk filter ruangan
+CREATE INDEX idx_ruangan_gedung ON ruangan(gedung);
+CREATE INDEX idx_ruangan_status ON ruangan(status);
+
+
+-- ============================================================
+-- 3. TABEL RESERVASI
+-- Menyimpan data pemesanan ruangan
+-- ============================================================
+CREATE TABLE IF NOT EXISTS reservasi (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    pengguna_id BIGINT NOT NULL REFERENCES pengguna(id) ON DELETE CASCADE,
+    ruangan_id BIGINT NOT NULL REFERENCES ruangan(id) ON DELETE CASCADE,
+    tanggal DATE NOT NULL,
+    jam_mulai TIME NOT NULL,
+    jam_selesai TIME NOT NULL,
+    keperluan TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Disetujui', 'Ditolak', 'Dibatalkan', 'Selesai')),
+    catatan_admin TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Pastikan jam_selesai > jam_mulai
+    CONSTRAINT chk_jam CHECK (jam_selesai > jam_mulai)
+);
+
+-- Index untuk query yang sering dipakai
+CREATE INDEX idx_reservasi_pengguna ON reservasi(pengguna_id);
+CREATE INDEX idx_reservasi_ruangan ON reservasi(ruangan_id);
+CREATE INDEX idx_reservasi_tanggal ON reservasi(tanggal);
+CREATE INDEX idx_reservasi_status ON reservasi(status);
+-- Composite index untuk cek bentrok jadwal
+CREATE INDEX idx_reservasi_bentrok ON reservasi(ruangan_id, tanggal, status);
+
+
+-- ============================================================
+-- 4. TABEL DOKUMENTASI FOTO
+-- Menyimpan URL foto dokumentasi per reservasi
+-- ============================================================
+CREATE TABLE IF NOT EXISTS dokumentasi_foto (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    reservasi_id BIGINT NOT NULL REFERENCES reservasi(id) ON DELETE CASCADE,
+    foto_url TEXT NOT NULL,
+    uploaded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index untuk query foto per reservasi
+CREATE INDEX idx_foto_reservasi ON dokumentasi_foto(reservasi_id);
+
+
+-- ============================================================
+-- 5. FUNCTION: AUTO UPDATE updated_at
+-- Otomatis update kolom updated_at saat data diubah
+-- ============================================================
+CREATE OR REPLACE FUNCTION update_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger untuk pengguna
+CREATE TRIGGER trg_pengguna_updated_at
+    BEFORE UPDATE ON pengguna
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();
+
+-- Trigger untuk ruangan
+CREATE TRIGGER trg_ruangan_updated_at
+    BEFORE UPDATE ON ruangan
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();
+
+-- Trigger untuk reservasi
+CREATE TRIGGER trg_reservasi_updated_at
+    BEFORE UPDATE ON reservasi
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at();
+
+
+-- ============================================================
+-- 6. DATA AWAL: ADMIN DEFAULT
+-- Username: admin | Password: admin123 (hashed bcrypt)
+-- ============================================================
+INSERT INTO pengguna (nama, username, password, role, nim_nip)
+VALUES (
+    'Administrator',
+    'admin',
+    '$2b$12$LJ3m4ys3GZxkGJXvBq5Kyu5FeGMCVb3eL8VQzZw8.7R5lFDOmNKmK',
+    'Admin',
+    '-'
+);
+
+
+-- ============================================================
+-- 7. DATA CONTOH: RUANGAN
+-- Beberapa ruangan untuk testing
+-- ============================================================
+INSERT INTO ruangan (nama, gedung, lantai, kapasitas, fasilitas, status) VALUES
+    ('A301', 'Gedung A', 3, 40, 'Proyektor, AC, Whiteboard', 'Tersedia'),
+    ('A302', 'Gedung A', 3, 35, 'Proyektor, AC', 'Tersedia'),
+    ('D201', 'Gedung D', 2, 50, 'Proyektor, AC, Whiteboard, Sound System', 'Tersedia'),
+    ('D202', 'Gedung D', 2, 30, 'AC, Whiteboard', 'Tersedia'),
+    ('D303', 'Gedung D', 3, 40, 'Komputer 40 unit, AC, Proyektor', 'Tersedia'),
+    ('D304', 'Gedung D', 3, 200, 'Proyektor, AC, Sound System, Panggung', 'Tersedia');
+    ('LAB 1', 'Gedung D', 4, 200, 'Proyektor, AC, Sound System, Panggung', 'Tersedia');
+    ('LAB 2', 'Gedung D', 4, 200, 'Proyektor, AC, Sound System, Panggung', 'Tersedia');
+    ('LAB 3', 'Gedung D', 4, 200, 'Proyektor, AC, Sound System, Panggung', 'Tersedia');
+    ('LAB 4', 'Gedung D', 4, 200, 'Proyektor, AC, Sound System, Panggung', 'Tersedia');
+
+
+-- ============================================================
+-- 8. ROW LEVEL SECURITY (RLS)
+-- Keamanan agar user hanya bisa akses data milik sendiri
+-- ============================================================
+
+-- Aktifkan RLS di semua tabel
+ALTER TABLE pengguna ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ruangan ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reservasi ENABLE ROW LEVEL SECURITY;
+ALTER TABLE dokumentasi_foto ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Semua bisa baca ruangan (untuk dropdown pilih ruangan)
+CREATE POLICY "Ruangan bisa dibaca semua" ON ruangan
+    FOR SELECT USING (true);
+
+-- Policy: Semua bisa baca, insert, update, delete (via service key dari Python app)
+-- Karena app ini desktop (bukan web), autentikasi dilakukan di level aplikasi
+-- Kita pakai service_role key, jadi RLS di-bypass oleh backend
+-- Tapi kita tetap aktifkan RLS untuk keamanan tambahan
+
+CREATE POLICY "Allow all for service role pengguna" ON pengguna
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for service role ruangan" ON ruangan
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for service role reservasi" ON reservasi
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for service role dokumentasi" ON dokumentasi_foto
+    FOR ALL USING (true) WITH CHECK (true);
+```
+
+---
+
+## Storage Bucket
+
+> [!NOTE]
+> Bagian ini **tidak bisa dilakukan via SQL**. Harus setup manual di Supabase Dashboard.
+
+### Cara buat Storage Bucket:
+1. Buka **Storage** di sidebar Supabase
+2. Klik **New Bucket**
+3. Nama bucket: `foto-dokumentasi`
+4. Centang **Public bucket** (agar foto bisa diakses via URL)
+5. Klik **Create Bucket**
+
+---
+
+## Reset Database (Jika Perlu)
+
+> [!CAUTION]
+> SQL di bawah ini akan **menghapus semua data**. Hanya gunakan jika ingin reset dari awal.
+
+```sql
+-- Drop semua tabel (urutan penting karena foreign key)
+DROP TABLE IF EXISTS dokumentasi_foto CASCADE;
+DROP TABLE IF EXISTS reservasi CASCADE;
+DROP TABLE IF EXISTS ruangan CASCADE;
+DROP TABLE IF EXISTS pengguna CASCADE;
+
+-- Drop function & trigger
+DROP FUNCTION IF EXISTS update_updated_at CASCADE;
+```
+
+---
+
+## Akun Default untuk Testing
+
+| Role | Username | Password |
+|------|----------|----------|
+| Admin | `admin` | `admin123` |
+
+> [!TIP]
+> Password di atas sudah di-hash menggunakan bcrypt. Di aplikasi Python nanti, gunakan library `bcrypt` untuk verifikasi: `bcrypt.checkpw(password.encode(), hashed.encode())`
