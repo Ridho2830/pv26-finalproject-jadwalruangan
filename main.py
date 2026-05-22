@@ -3,6 +3,7 @@ from PySide6.QtWidgets import QApplication, QStackedWidget
 from ui.index import StatusRuanganView
 from ui.loginPage import LoginPage
 from ui.admin.dashboard import AdminDashboard
+from ui.mahasiswa import MahasiswaPage
 
 class MainWindow(QStackedWidget):
     def __init__(self):
@@ -15,11 +16,13 @@ class MainWindow(QStackedWidget):
         self.public_view = StatusRuanganView(self)
         self.login_page = LoginPage(self)
         self.admin_dashboard = AdminDashboard(self)
+        self.mahasiswa_page = MahasiswaPage(self)
         
         # Tambah ke stacked widget
         self.addWidget(self.public_view)      # Index 0
         self.addWidget(self.login_page)       # Index 1
         self.addWidget(self.admin_dashboard)  # Index 2
+        self.addWidget(self.mahasiswa_page)   # Index 3
         
         # Tampilkan halaman utama (Public View)
         self.switch_to_public()
