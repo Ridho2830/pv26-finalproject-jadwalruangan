@@ -50,7 +50,13 @@ class DetailRuanganPopup(QDialog):
         name_lbl = QLabel(name)
         name_lbl.setStyleSheet("font-size: 22px; font-weight: 800; background-color: transparent;")
         
-        badge_lbl = QLabel(status)
+        display_status = status
+        if status == "Digunakan" or status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
+            display_status = "Terpakai"
+        elif status == "Dosen":
+            display_status = "Terbooking"
+            
+        badge_lbl = QLabel(display_status.upper())
         badge_class = self._get_badge_class(status)
         badge_lbl.setProperty("class", f"badge {badge_class}")
         badge_lbl.setAlignment(Qt.AlignCenter)
@@ -68,7 +74,8 @@ class DetailRuanganPopup(QDialog):
         
         # ── Kubus 3D ──
         cube_color = self._get_cube_color(status)
-        cube = CubeWidget(cube_color)
+        should_animate = status in ("Terpakai", "Digunakan", "Terbooking", "Dosen")
+        cube = CubeWidget(cube_color, should_animate=should_animate)
         
         cube_container = QWidget()
         cube_layout = QHBoxLayout(cube_container)
@@ -144,22 +151,18 @@ class DetailRuanganPopup(QDialog):
     
     def _get_badge_class(self, status: str) -> str:
         """Mengembalikan class badge berdasarkan status."""
-        if status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
-            return "badge_unavailable"
-        elif status == "Digunakan":
+        if status == "Terpakai" or status == "Digunakan" or status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
             return "badge_in_use"
-        elif status in ("Terbooking", "Dosen"):
+        elif status == "Terbooking" or status == "Dosen":
             return "badge_booked"
         return "badge_available"
     
     def _get_cube_color(self, status: str) -> str:
         """Mengembalikan warna kubus berdasarkan status."""
-        if status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
-            return "#9CA3AF"
-        elif status == "Digunakan":
+        if status == "Terpakai" or status == "Digunakan" or status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
             return "#EF4444"
-        elif status in ("Terbooking", "Dosen"):
-            return "#4f378a"
+        elif status == "Terbooking" or status == "Dosen":
+            return "#F59E0B"
         return "#22C55E"
         
     def _on_login_clicked(self):

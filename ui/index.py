@@ -1,26 +1,22 @@
-from PySide6.QtCore import QTimer
-from PySide6.QtCore import QDateTime
-import os
+from PySide6.QtCore import QTimer, QDateTime, Qt, QPropertyAnimation, QEasingCurve, QParallelAnimationGroup, QSequentialAnimationGroup, QPauseAnimation
 from functools import partial
-from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-                               QLabel, QPushButton, QLineEdit, QComboBox, 
-                               QFrame, QGridLayout, QScrollArea)
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
+                               QLabel, QPushButton, QComboBox, 
+                               QFrame, QGridLayout, QScrollArea,
+                               QGraphicsDropShadowEffect, QGraphicsOpacityEffect)
+from PySide6.QtGui import QColor
 
 # Impor komponen kustom dari utils
 from utils.components import CubeWidget
 from utils.mode import theme_manager
 from ui.detail_ruangan import DetailRuanganPopup
 
-class StatusRuanganView(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("ReservasiKampus - Status Ruangan Real-Time")
+class StatusRuanganView(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
         
-        # Main Widget & Layout
-        self.main_widget = QWidget()
-        self.setCentralWidget(self.main_widget)
-        self.main_layout = QVBoxLayout(self.main_widget)
+        # Main Layout
+        self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
         
@@ -43,7 +39,6 @@ class StatusRuanganView(QMainWindow):
         header = QWidget()
         header.setObjectName("header")
         header_layout = QHBoxLayout(header)
-        # Memberikan margin vertikal sedikit lebih lega agar tidak terlalu sesak
         header_layout.setContentsMargins(24, 12, 24, 12)
         header_layout.setSpacing(16)
         
@@ -51,62 +46,59 @@ class StatusRuanganView(QMainWindow):
         left_layout = QHBoxLayout()
         left_layout.setSpacing(12)
         
-        # Tambahkan ikon logo menggunakan emoji (bisa diganti icon SVG nantinya)
         logo_label = QLabel("🏢") 
         logo_label.setStyleSheet("font-size: 20px; background-color: transparent;")
         
         title_label = QLabel("ReservasiKampus")
         title_label.setObjectName("header_title")
         
-        # Penambahan alignment vertikal agar semua text sejajar rapi di tengah
         left_layout.addWidget(logo_label, alignment=Qt.AlignVCenter)
         left_layout.addWidget(title_label, alignment=Qt.AlignVCenter)
+        
         # ─── Sisi Kanan: Theme Toggle, Jam Real-Time & Login ───
         right_layout = QHBoxLayout()
         right_layout.setSpacing(14)
         
-        # Theme Toggle Button
         self.theme_btn = QPushButton("🌙")
         self.theme_btn.setObjectName("theme_toggle")
         self.theme_btn.setToolTip("Toggle Dark/Light Mode")
         self.theme_btn.setCursor(Qt.PointingHandCursor)
         self.theme_btn.clicked.connect(self.toggle_theme)
         
-        # Label Waktu (Sekarang berjalan real-time)
         self.time_label = QLabel()
         self.time_label.setObjectName("header_time")
-        self.update_time() # Set waktu inisial agar tidak kosong saat baru dirender
+        self.update_time()
         
-        # Setup QTimer agar jam berjalan (update setiap 1000ms / 1 detik)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_time)
         self.timer.start(1000)
         
-        # Tombol Login
         login_btn = QPushButton("Login")
         login_btn.setObjectName("login_btn")
         login_btn.setCursor(Qt.PointingHandCursor)
+        login_btn.clicked.connect(self._on_login_clicked)
         
-        # Alignment vertikal untuk elemen interaktif
         right_layout.addWidget(self.theme_btn, alignment=Qt.AlignVCenter)
         right_layout.addWidget(self.time_label, alignment=Qt.AlignVCenter)
         right_layout.addWidget(login_btn, alignment=Qt.AlignVCenter)
         
         header_layout.addLayout(left_layout)
-        header_layout.addStretch() # Pendorong agar layout menempel ke ujung kiri dan kanan
+        header_layout.addStretch()
         header_layout.addLayout(right_layout)
         
         self.main_layout.addWidget(header)
 
+    def _on_login_clicked(self):
+        """Navigasi ke Halaman Login."""
+        parent_widget = self.parent()
+        if parent_widget and hasattr(parent_widget, 'switch_to_login'):
+            parent_widget.switch_to_login()
+
     def update_time(self):
-        """Fungsi untuk mengupdate label waktu secara real-time ke format Bahasa Indonesia."""
         current_time = QDateTime.currentDateTime()
-        
-        # Format nama hari
         hari = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
         nama_hari = hari[current_time.date().dayOfWeek() - 1]
         
-        # Format nama bulan
         bulan = ["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
         nama_bulan = bulan[current_time.date().month()]
         
@@ -114,7 +106,6 @@ class StatusRuanganView(QMainWindow):
         tahun = current_time.date().year()
         waktu = current_time.toString("HH:mm:ss")
         
-        # Format akhir: "Senin, 12 Mei 2025 | 09:34:22"
         self.time_label.setText(f"{nama_hari}, {tanggal:02d} {nama_bulan} {tahun} | {waktu}")
 
     def create_filter_section(self):
@@ -125,7 +116,6 @@ class StatusRuanganView(QMainWindow):
         filter_layout.setContentsMargins(24, 16, 24, 16)
         filter_layout.setSpacing(12)
         
-        # Stats Container
         self.stats_widget = QWidget()
         self.stats_widget.setObjectName("stats_container")
         self.stats_widget.setStyleSheet("#stats_container { background-color: transparent; }")
@@ -138,7 +128,7 @@ class StatusRuanganView(QMainWindow):
         def create_stat_chip(color, key):
             chip = QFrame()
             chip.setProperty("class", "stat_chip")
-            chip.setFixedSize(44, 44) # Make it square
+            chip.setFixedSize(44, 44)
             
             l = QVBoxLayout(chip)
             l.setContentsMargins(2, 4, 2, 4)
@@ -159,21 +149,23 @@ class StatusRuanganView(QMainWindow):
             return chip
             
         stats_layout.addWidget(create_stat_chip("#22C55E", "Tersedia"))
-        stats_layout.addWidget(create_stat_chip("#EF4444", "Digunakan"))
         stats_layout.addWidget(create_stat_chip("#F59E0B", "Terbooking"))
-        stats_layout.addWidget(create_stat_chip("#6B7280", "Nonaktif"))
+        stats_layout.addWidget(create_stat_chip("#EF4444", "Terpakai"))
         
         filter_layout.addWidget(self.stats_widget)
         filter_layout.addStretch()
         
-        # Controls
         self.status_combo = QComboBox()
-        self.status_combo.addItems(["Status: Semua", "Tersedia", "Digunakan", "Terbooking", "Nonaktif"])
+        self.status_combo.addItems(["Status: Semua", "Tersedia", "Terbooking", "Terpakai"])
         self.status_combo.setFixedWidth(150)
+        self.status_combo.currentIndexChanged.connect(self._on_filter_changed)
         
         filter_layout.addWidget(self.status_combo)
-        
         self.main_layout.addWidget(filter_widget)
+
+    def _on_filter_changed(self):
+        """Memanggil refresh data untuk menyaring kartu."""
+        self.refresh_data()
 
     def create_main_canvas(self):
         self.scroll_area = QScrollArea()
@@ -181,38 +173,64 @@ class StatusRuanganView(QMainWindow):
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.NoFrame)
         
-        canvas_widget = QWidget()
-        canvas_main_layout = QVBoxLayout(canvas_widget)
-        canvas_main_layout.setContentsMargins(24, 16, 24, 24)
-        canvas_main_layout.setSpacing(16)
+        self.canvas_widget = QWidget()
+        self.canvas_main_layout = QVBoxLayout(self.canvas_widget)
+        self.canvas_main_layout.setContentsMargins(24, 16, 24, 24)
+        self.canvas_main_layout.setSpacing(16)
         
-        # Label "SEMUA RUANGAN"
         section_lbl = QLabel("SEMUA RUANGAN")
         section_lbl.setObjectName("section_label")
-        canvas_main_layout.addWidget(section_lbl)
+        self.canvas_main_layout.addWidget(section_lbl)
         
-        # Grid untuk kartu
-        grid_container = QWidget()
-        self.canvas_layout = QGridLayout(grid_container)
+        self.grid_container = QWidget()
+        self.canvas_layout = QGridLayout(self.grid_container)
         self.canvas_layout.setContentsMargins(0, 0, 0, 0)
         self.canvas_layout.setSpacing(16)
+        
+        self.canvas_main_layout.addWidget(self.grid_container)
+        self.canvas_main_layout.addStretch()
+        
+        self.scroll_area.setWidget(self.canvas_widget)
+        self.main_layout.addWidget(self.scroll_area)
 
-        # Fetch data from Supabase
+    def clear_layout(self, layout):
+        """Membersihkan semua widget dari layout secara rekursif."""
+        if layout is not None:
+            while layout.count():
+                item = layout.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+                else:
+                    self.clear_layout(item.layout())
+
+    def refresh_data(self):
+        """Memperbarui data ruangan dari database Supabase dan merender kartu ruangan."""
+        self.clear_layout(self.canvas_layout)
+        self.cards = []
+        self.rooms_raw = []
+        
+        # Ambil filter status aktif
+        filter_text = "Semua"
+        if hasattr(self, 'status_combo'):
+            combo_val = self.status_combo.currentText()
+            if ":" in combo_val:
+                filter_text = combo_val.split(":")[-1].strip()
+            else:
+                filter_text = combo_val.strip()
+
+        # Fetch data dari Supabase
         from api.supabase import get_supabase_client
         supabase = get_supabase_client()
-        
         rooms_data = supabase.table('ruangan').select()
         
         if not rooms_data:
             rooms_data = []
         
-        # Hitung statistik & kumpulkan gedung/lantai unik
-        counts = {"Tersedia": 0, "Digunakan": 0, "Terbooking": 0, "Nonaktif": 0}
-        gedung_set = set()
-        lantai_set = set()
+        counts = {"Tersedia": 0, "Terbooking": 0, "Terpakai": 0}
         
-        self.rooms_raw = []  # Simpan data mentah untuk popup
-        rooms = []
+        filtered_rooms = []
+        
         for r in rooms_data:
             name = r.get('nama', 'Unknown')
             gedung = r.get('gedung', 'Unknown')
@@ -220,51 +238,54 @@ class StatusRuanganView(QMainWindow):
             kapasitas = r.get('kapasitas', 0)
             status = r.get('status', 'Tersedia')
             
-            gedung_set.add(gedung)
-            lantai_set.add(lantai)
+            # Fallback mapping if database has legacy values
+            if status == "Digunakan":
+                status = "Terpakai"
+            elif status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
+                status = "Terpakai"
+            elif status == "Dosen":
+                status = "Terbooking"
             
-            # Update hitungan status
+            # Hitung statistik dari database (sebelum difilter untuk visualisasi statistik)
             if status in counts:
                 counts[status] += 1
-            elif status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
-                counts["Nonaktif"] += 1
-            elif status in ("Dosen",):
-                counts["Terbooking"] += 1
             
-            # Tentukan badge
+            # Filter check
+            match = False
+            if filter_text == "Semua":
+                match = True
+            elif filter_text == status:
+                match = True
+                
+            if not match:
+                continue
+            
             badge_class = "badge_available"
-            if status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
-                badge_class = "badge_unavailable"
-            elif status == "Digunakan":
+            if status == "Terpakai":
                 badge_class = "badge_in_use"
-            elif status in ("Terbooking", "Dosen"):
+            elif status == "Terbooking":
                 badge_class = "badge_booked"
                 
-            rooms.append((name, status, badge_class))
-            self.rooms_raw.append(r)  # Simpan data lengkap untuk popup
+            filtered_rooms.append((name, status, badge_class))
+            self.rooms_raw.append(r)
         
         # Update label statistik
         if hasattr(self, 'stat_labels'):
-            for text, count in counts.items():
-                if text in self.stat_labels:
-                    self.stat_labels[text].setText(str(count))
+            for key, count in counts.items():
+                if key in self.stat_labels:
+                    self.stat_labels[key].setText(str(count))
         
-        # Update combo filter dari database
-        if hasattr(self, 'status_combo'):
-            self.status_combo.clear()
-            self.status_combo.addItems(["Status: Semua", "Tersedia", "Digunakan", "Terbooking", "Nonaktif"])
-        
-        # Jika tidak ada data — tampilkan empty state yang informatif
-        if not rooms:
+        # Render kartu ruangan
+        if not filtered_rooms:
             empty_icon = QLabel("📭")
             empty_icon.setAlignment(Qt.AlignCenter)
             empty_icon.setStyleSheet("font-size: 48px; background-color: transparent; padding-top: 40px;")
             
-            empty_title = QLabel("Tidak Ada Ruangan Ditemukan")
+            empty_title = QLabel("Tidak Ada Ruangan")
             empty_title.setAlignment(Qt.AlignCenter)
             empty_title.setStyleSheet("font-size: 18px; font-weight: 700; background-color: transparent; padding: 8px;")
             
-            empty_desc = QLabel("Data ruangan belum tersedia atau tidak ada yang cocok dengan filter.\nCoba ubah kriteria pencarian Anda.")
+            empty_desc = QLabel("Jadwal ruangan kosong atau tidak ada ruangan yang sesuai filter.")
             empty_desc.setAlignment(Qt.AlignCenter)
             empty_desc.setWordWrap(True)
             empty_desc.setStyleSheet("font-size: 13px; color: #6b5e8a; background-color: transparent;")
@@ -272,17 +293,15 @@ class StatusRuanganView(QMainWindow):
             self.canvas_layout.addWidget(empty_icon, 0, 0)
             self.canvas_layout.addWidget(empty_title, 1, 0)
             self.canvas_layout.addWidget(empty_desc, 2, 0)
+            return
         
-        # Buat kartu: Sesuai referensi gambar
-        self.cards = []
         import json
-        for i, (name, status, badge_class) in enumerate(rooms):
+        for i, (name, status, badge_class) in enumerate(filtered_rooms):
             r = self.rooms_raw[i]
             kapasitas = r.get('kapasitas', 0)
             gedung = r.get('gedung', '-')
             lantai = r.get('lantai', '-')
-            # Data dummy jika di database masih kosong (NULL)
-
+            
             fasilitas_raw = r.get('fasilitas') or r.get('fasilitas_list')
             fasilitas_list = []
             
@@ -312,19 +331,13 @@ class StatusRuanganView(QMainWindow):
             # 1. Baris Atas: Nama + Badge
             top_row = QHBoxLayout()
             title_lbl = QLabel(name)
+            title_lbl.setProperty("class", "room_title")
+            title_lbl.setStyleSheet("background-color: transparent;")
             is_dark = theme_manager.is_dark
-            title_color = "#F9FAFB" if is_dark else "#1F2937"
-            title_lbl.setStyleSheet(f"font-size: 16px; font-weight: 800; color: {title_color}; background-color: transparent;")
             
             badge_lbl = QLabel(status.upper())
             badge_lbl.setAlignment(Qt.AlignCenter)
-            # Style badge sesuai gambar
-            if status == "Tersedia":
-                badge_lbl.setStyleSheet("background-color: #F0FDF4; color: #15803D; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 700;")
-            elif status == "Digunakan":
-                badge_lbl.setStyleSheet("background-color: #FEF2F2; color: #DC2626; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 700;")
-            else:
-                badge_lbl.setStyleSheet("background-color: #F3F4F6; color: #4B5563; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 700;")
+            badge_lbl.setProperty("class", f"badge {badge_class}")
                 
             top_row.addWidget(title_lbl)
             top_row.addStretch()
@@ -333,20 +346,19 @@ class StatusRuanganView(QMainWindow):
             
             # 2. Subtitle
             subtitle_lbl = QLabel(f"Gedung {gedung} • Lantai {lantai} • Kapasitas {kapasitas}")
-            subtitle_color = "#9CA3AF" if is_dark else "#6B7280"
-            subtitle_lbl.setStyleSheet(f"font-size: 12px; color: {subtitle_color}; background-color: transparent;")
+            subtitle_lbl.setProperty("class", "room_details")
+            subtitle_lbl.setStyleSheet("background-color: transparent;")
             card_layout.addWidget(subtitle_lbl)
             
-            # 3. Kubus 3D (Tengah)
+            # 3. Kubus 3D
             cube_color = "#22C55E"
-            if status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
-                cube_color = "#9CA3AF"
-            elif status == "Digunakan":
+            if status == "Terpakai" or status == "Digunakan" or status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
                 cube_color = "#EF4444"
-            elif status in ("Terbooking", "Dosen"):
+            elif status == "Terbooking" or status == "Dosen":
                 cube_color = "#F59E0B"
                 
-            cube_widget = CubeWidget(cube_color)
+            should_animate = status in ("Terpakai", "Digunakan", "Terbooking", "Dosen")
+            cube_widget = CubeWidget(cube_color, should_animate=should_animate)
             cube_container = QWidget()
             cube_container_layout = QHBoxLayout(cube_container)
             cube_container_layout.addStretch()
@@ -361,78 +373,86 @@ class StatusRuanganView(QMainWindow):
             chips_row.setSpacing(6)
             for fas in fasilitas_list:
                 fas_lbl = QLabel(fas)
-                fas_lbl.setStyleSheet("background-color: #F3E8FF; color: #6B21A8; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 600;")
+                fas_lbl.setProperty("class", "facility_chip")
                 chips_row.addWidget(fas_lbl)
             chips_row.addStretch()
             card_layout.addLayout(chips_row)
             
-
-            
-
-            
-            # Buat kartu bisa diklik → buka popup detail
             card.mousePressEvent = partial(self._on_card_clicked, index=i)
             
-            self.cards.append(card)
-
+            # Container dengan Opacity Effect
+            container = QWidget()
+            container.setStyleSheet("background-color: transparent;")
+            container_layout = QVBoxLayout(container)
+            container_layout.setContentsMargins(8, 8, 8, 8)
+            container_layout.addWidget(card)
             
-        # Susun grid
+            shadow = QGraphicsDropShadowEffect(card)
+            shadow.setBlurRadius(16)
+            shadow.setColor(QColor(155, 93, 229, 40) if is_dark else QColor(107, 114, 128, 40))
+            shadow.setOffset(0, 4)
+            card.setGraphicsEffect(shadow)
+            
+            opacity_effect = QGraphicsOpacityEffect(container)
+            container.setGraphicsEffect(opacity_effect)
+            opacity_effect.setOpacity(0.0)
+            
+            self.cards.append(container)
+        
         self.adjust_grid_columns()
         
-        canvas_main_layout.addWidget(grid_container)
-        canvas_main_layout.addStretch()
-            
-        self.scroll_area.setWidget(canvas_widget)
-        self.main_layout.addWidget(self.scroll_area)
-
-
+        # Animasi staggered fade-in
+        self.anim_group = QParallelAnimationGroup(self)
+        for idx, container in enumerate(self.cards):
+            effect = container.graphicsEffect()
+            if isinstance(effect, QGraphicsOpacityEffect):
+                anim = QPropertyAnimation(effect, b"opacity")
+                anim.setDuration(450)
+                anim.setStartValue(0.0)
+                anim.setEndValue(1.0)
+                anim.setEasingCurve(QEasingCurve.OutCubic)
+                
+                seq_group = QSequentialAnimationGroup(self)
+                pause = QPauseAnimation(idx * 75, self)
+                seq_group.addAnimation(pause)
+                seq_group.addAnimation(anim)
+                
+                seq_group.finished.connect(lambda c=container: c.setGraphicsEffect(None))
+                self.anim_group.addAnimation(seq_group)
+        self.anim_group.start()
 
     def _on_card_clicked(self, event, index):
-        """Membuka popup detail ruangan saat kartu diklik."""
         if index < len(self.rooms_raw):
             room_data = self.rooms_raw[index]
             popup = DetailRuanganPopup(room_data, parent=self)
             popup.exec()
 
     def adjust_grid_columns(self):
-        """Menyusun ulang kartu ruangan dalam grid berdasarkan lebar window."""
         if not hasattr(self, 'cards') or not self.cards:
             return
             
         width = self.scroll_area.width()
-        # Jika lebar belum terhitung (misal saat awal), gunakan lebar window
         if width <= 0:
             width = self.width()
             
-        # Tentukan jumlah kolom (Gunakan 2 kolom di ukuran kecil agar jadi 2x2)
         if width < 500:
             cols = 2
         else:
             cols = max(2, (width - 48) // 320)
-
         
-        # Bersihkan layout lama (tanpa menghapus widget)
         for i in reversed(range(self.canvas_layout.count())):
             self.canvas_layout.takeAt(i)
             
-        # Susun ulang
         for i, card in enumerate(self.cards):
             row = i // cols
             col = i % cols
             self.canvas_layout.addWidget(card, row, col)
 
     def resizeEvent(self, event):
-        """Event bawaan yang dipanggil saat window di-resize."""
         super().resizeEvent(event)
         self.adjust_grid_columns()
 
-
-
     def create_footer(self):
-        footer_container = QVBoxLayout()
-        footer_container.setSpacing(0)
-        
-        # ── Notification Banner (dismissable) ──
         self.notif_banner = QFrame()
         self.notif_banner.setObjectName("notif_banner")
         notif_layout = QHBoxLayout(self.notif_banner)
@@ -455,7 +475,6 @@ class StatusRuanganView(QMainWindow):
         notif_layout.addWidget(notif_text, 1)
         notif_layout.addWidget(dismiss_btn)
         
-        # ── Footer utama ──
         footer = QWidget()
         footer.setObjectName("footer")
         footer_layout = QHBoxLayout(footer)
@@ -471,29 +490,23 @@ class StatusRuanganView(QMainWindow):
         footer_layout.addStretch()
         footer_layout.addWidget(refresh_lbl)
         
-        # Tambahkan ke main layout
         self.main_layout.addWidget(self.notif_banner)
         self.main_layout.addWidget(footer)
 
     def load_stylesheet(self):
-        """Memuat stylesheet dari ThemeManager sesuai tema aktif."""
         stylesheet = theme_manager.get_stylesheet()
         if stylesheet:
             self.setStyleSheet(stylesheet)
 
-    
     def toggle_theme(self):
-        """Toggle antara dark dan light mode."""
         theme_manager.toggle()
         self.apply_theme()
     
     def apply_theme(self):
-        """Terapkan tema dari ThemeManager dan update ikon toggle."""
         stylesheet = theme_manager.get_stylesheet()
         if stylesheet:
             self.setStyleSheet(stylesheet)
         
-        # Update ikon tombol toggle
         if theme_manager.is_dark:
             self.theme_btn.setText("🌙")
             self.theme_btn.setToolTip("Beralih ke Light Mode")

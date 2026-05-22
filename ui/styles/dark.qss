@@ -67,23 +67,23 @@ QScrollBar::sub-page:vertical {
 }
 
 #login_btn {
-    border: 1px solid rgba(192, 132, 252, 0.55);
+    border: 1px solid rgba(192, 132, 252, 0.4);
     color: #c084fc;
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 6px 18px;
     font-size: 13px;
-    font-weight: 600;
-    background-color: transparent;
+    font-weight: 700;
+    background-color: rgba(147, 90, 255, 0.08);
 }
 
 #login_btn:hover {
-    background-color: rgba(147, 90, 255, 0.14);
-    border-color: #9b5de5;
-    color: #e0aaff;
+    background-color: rgba(147, 90, 255, 0.2);
+    border-color: #c084fc;
+    color: #ffffff;
 }
 
 #login_btn:pressed {
-    background-color: rgba(147, 90, 255, 0.25);
+    background-color: rgba(147, 90, 255, 0.3);
 }
 
 /* ── Theme Toggle ────────────────────────────────── */
@@ -187,17 +187,30 @@ QComboBox QAbstractItemView {
 
 /* ── Room Cards ──────────────────────────────────── */
 .room_card {
-    background-color: #1c1433;
-    border: 1px solid rgba(147, 90, 255, 0.18);
-    border-radius: 14px;
-    padding: 12px;
+    background-color: rgba(28, 20, 51, 0.55);
+    border: 1px solid rgba(192, 132, 252, 0.15);
+    border-radius: 16px;
+    padding: 14px;
     min-width: 120px;
     max-width: 340px;
 }
 
 .room_card:hover {
-    background-color: #221940;
-    border: 1px solid rgba(147, 90, 255, 0.45);
+    background-color: rgba(34, 25, 64, 0.75);
+    border: 1px solid rgba(192, 132, 252, 0.45);
+}
+
+.dashboard_card {
+    background-color: rgba(28, 20, 51, 0.55);
+    border: 1px solid rgba(192, 132, 252, 0.15);
+    border-radius: 16px;
+    padding: 14px;
+    min-width: 120px;
+}
+
+.dashboard_card:hover {
+    background-color: rgba(34, 25, 64, 0.75);
+    border: 1px solid rgba(192, 132, 252, 0.45);
 }
 
 .room_title {
@@ -313,7 +326,188 @@ QComboBox QAbstractItemView {
     background-color: transparent;
 }
 
+#sidebar_title_lbl {
+    font-size: 18px;
+    font-weight: 800;
+    color: #c084fc;
+    background-color: transparent;
+}
+
+#sidebar_subtitle_lbl {
+    font-size: 11px;
+    color: #6b5e8a;
+    font-weight: 700;
+    text-transform: uppercase;
+    background-color: transparent;
+}
+
+#sidebar QPushButton {
+    text-align: left;
+    padding: 0px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#sidebar QPushButton[class="active"] {
+    background-color: rgba(147, 90, 255, 0.25);
+    color: #ffffff;
+    border-left: 3px solid #c084fc;
+}
+
+#sidebar QPushButton:hover:not([class="active"]) {
+    background-color: rgba(147, 90, 255, 0.12);
+    color: #f0e8ff;
+}
+
+#logout_btn {
+    background-color: rgba(239, 68, 68, 0.08);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+#logout_btn:hover {
+    background-color: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+}
+
 .stat_chip {
     background-color: transparent;
     border: none;
 }
+
+/* ── QTableWidget & Tables ────────────────────────── */
+QTableWidget {
+    background-color: #160f2a;
+    border: 1px solid rgba(147, 90, 255, 0.15);
+    border-radius: 12px;
+    gridline-color: rgba(147, 90, 255, 0.06);
+    color: #f0e8ff;
+}
+
+QTableWidget::item {
+    padding: 8px;
+    border-bottom: 1px solid rgba(147, 90, 255, 0.06);
+}
+
+QTableWidget::item:selected {
+    background-color: rgba(147, 90, 255, 0.2);
+    color: #ffffff;
+}
+
+QTableWidget::item:hover {
+    background-color: rgba(147, 90, 255, 0.1);
+}
+
+QHeaderView::section {
+    background-color: #1c1433;
+    color: #c084fc;
+    padding: 8px 12px;
+    border: none;
+    border-bottom: 2.5px solid rgba(147, 90, 255, 0.25);
+    font-weight: bold;
+    font-size: 12px;
+}
+
+/* ── Table Action Buttons ────────────────────────── */
+#edit_action_btn {
+    background-color: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 11px;
+}
+
+#edit_action_btn:hover {
+    background-color: #10b981;
+    color: #ffffff;
+    border-color: #10b981;
+}
+
+#delete_action_btn {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 11px;
+}
+
+#delete_action_btn:hover {
+    background-color: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+}
+
+/* ── Login View Redesign ─────────────────────────── */
+#login_container #form_card {
+    background-color: rgba(22, 15, 42, 0.65);
+    border: 1px solid rgba(147, 90, 255, 0.22);
+    border-radius: 16px;
+}
+
+#login_app_title {
+    font-size: 26px;
+    font-weight: 900;
+    color: #c084fc;
+    background-color: transparent;
+}
+
+#page_title_lbl {
+    font-size: 16px;
+    font-weight: 700;
+    color: #a899c8;
+    background-color: transparent;
+}
+
+#username_lbl,
+#password_lbl {
+    font-size: 12px;
+    font-weight: 700;
+    color: #a899c8;
+    background-color: transparent;
+}
+
+#back_btn {
+    background-color: transparent;
+    border: 1px solid rgba(147, 90, 255, 0.25);
+    color: #a899c8;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+#back_btn:hover {
+    border-color: #c084fc;
+    color: #ffffff;
+    background-color: rgba(147, 90, 255, 0.08);
+}
+
+/* ── Form Dialog Controls ─────────────────────────── */
+#cancel_btn {
+    background-color: transparent;
+    color: #a899c8;
+    border: 1px solid rgba(147, 90, 255, 0.22);
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+#cancel_btn:hover {
+    background-color: rgba(147, 90, 255, 0.08);
+    color: #f0e8ff;
+}
+
+/* ── Facility Chip ───────────────────────────────── */
+.facility_chip {
+    background-color: rgba(147, 90, 255, 0.12);
+    color: #c084fc;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+}
+

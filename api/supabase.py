@@ -21,25 +21,44 @@ class SupabaseTable:
         self.url = f"{base_url}/{table_name}"
         self.headers = headers
 
-    def select(self, query: str = "*"):
+    def select(self, query: str = "*", filters: str = ""):
         """Mengambil data dari tabel."""
-        response = requests.get(f"{self.url}?select={query}", headers=self.headers)
-        return self._handle_response(response)
+        try:
+            url = f"{self.url}?select={query}"
+            if filters:
+                url += f"&{filters}"
+            response = requests.get(url, headers=self.headers)
+            return self._handle_response(response)
+        except Exception as e:
+            print(f"Database select error: {e}")
+            return None
 
     def insert(self, data: dict):
         """Menambahkan data ke tabel."""
-        response = requests.post(self.url, headers=self.headers, json=data)
-        return self._handle_response(response)
+        try:
+            response = requests.post(self.url, headers=self.headers, json=data)
+            return self._handle_response(response)
+        except Exception as e:
+            print(f"Database insert error: {e}")
+            return None
 
     def update(self, data: dict, filters: str):
         """Memperbarui data di tabel. Contoh filters: 'id=eq.1'"""
-        response = requests.patch(f"{self.url}?{filters}", headers=self.headers, json=data)
-        return self._handle_response(response)
+        try:
+            response = requests.patch(f"{self.url}?{filters}", headers=self.headers, json=data)
+            return self._handle_response(response)
+        except Exception as e:
+            print(f"Database update error: {e}")
+            return None
 
     def delete(self, filters: str):
         """Menghapus data dari tabel. Contoh filters: 'id=eq.1'"""
-        response = requests.delete(f"{self.url}?{filters}", headers=self.headers)
-        return self._handle_response(response)
+        try:
+            response = requests.delete(f"{self.url}?{filters}", headers=self.headers)
+            return self._handle_response(response)
+        except Exception as e:
+            print(f"Database delete error: {e}")
+            return None
 
     def _handle_response(self, response):
         """Menangani response dari API."""

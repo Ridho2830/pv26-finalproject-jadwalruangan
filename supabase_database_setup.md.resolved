@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS ruangan (
     lantai INT NOT NULL,
     kapasitas INT NOT NULL,
     fasilitas TEXT,  -- bisa diisi: "Proyektor, AC, Whiteboard"
-    status VARCHAR(20) NOT NULL DEFAULT 'Tersedia' CHECK (status IN ('Tersedia', 'Tidak Tersedia')),
+    status VARCHAR(20) NOT NULL DEFAULT 'Tersedia' CHECK (status IN ('Tersedia', 'Terbooking', 'Terpakai')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
