@@ -1,7 +1,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QLabel, 
                                 QTableWidget, QTableWidgetItem, 
-                                QHeaderView, QFrame)
+                                QHeaderView, QFrame, QHBoxLayout)
 from PySide6.QtGui import QColor
 from utils.mode import theme_manager
 from api.supabase import get_supabase_client

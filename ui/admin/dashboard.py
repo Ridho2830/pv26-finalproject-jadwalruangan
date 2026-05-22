@@ -8,6 +8,7 @@ from utils.mode import theme_manager
 from api.supabase import get_supabase_client
 from ui.admin.ruangan.kelola_ruangan import KelolaRuanganWidget
 from ui.admin.aktivitas.aktivitas_terbaru import AktivitasTerbaruWidget
+from ui.admin.pengguna.kelola_pengguna import KelolaPenggunaWidget
 
 import matplotlib
 matplotlib.use('QtAgg')
@@ -642,6 +643,7 @@ class AdminDashboard(QWidget):
         self.stacked_widget = QStackedWidget()
         self.stats_widget = AdminDashboardStatsWidget()
         self.rooms_widget = KelolaRuanganWidget(self)
+        self.users_widget = KelolaPenggunaWidget(self)
         
         # Wrap Stats Widget in a Scroll Area
         self.scroll_area = QScrollArea()
@@ -654,6 +656,7 @@ class AdminDashboard(QWidget):
         
         self.stacked_widget.addWidget(self.scroll_area) # Index 0
         self.stacked_widget.addWidget(self.rooms_widget) # Index 1
+        self.stacked_widget.addWidget(self.users_widget) # Index 2
         
         self._build_sidebar()
         self._build_content_area()
@@ -705,6 +708,13 @@ class AdminDashboard(QWidget):
         self.nav_ruangan_btn.clicked.connect(self.show_rooms_view)
         sidebar_layout.addWidget(self.nav_ruangan_btn)
         
+        self.nav_pengguna_btn = QPushButton("👥 Kelola Pengguna")
+        self.nav_pengguna_btn.setCursor(Qt.PointingHandCursor)
+        self.nav_pengguna_btn.setFixedHeight(40)
+        self.nav_pengguna_btn.setObjectName("nav_btn")
+        self.nav_pengguna_btn.clicked.connect(self.show_users_view)
+        sidebar_layout.addWidget(self.nav_pengguna_btn)
+        
         sidebar_layout.addStretch()
         
         # Logout Button
@@ -723,11 +733,14 @@ class AdminDashboard(QWidget):
     def show_stats_view(self):
         self.nav_stats_btn.setProperty("class", "active")
         self.nav_ruangan_btn.setProperty("class", "")
+        self.nav_pengguna_btn.setProperty("class", "")
         # Refresh stylesheet properties
         self.nav_stats_btn.style().unpolish(self.nav_stats_btn)
         self.nav_stats_btn.style().polish(self.nav_stats_btn)
         self.nav_ruangan_btn.style().unpolish(self.nav_ruangan_btn)
         self.nav_ruangan_btn.style().polish(self.nav_ruangan_btn)
+        self.nav_pengguna_btn.style().unpolish(self.nav_pengguna_btn)
+        self.nav_pengguna_btn.style().polish(self.nav_pengguna_btn)
         
         self.stacked_widget.setCurrentIndex(0)
         self.stats_widget.refresh_data()
@@ -735,14 +748,32 @@ class AdminDashboard(QWidget):
     def show_rooms_view(self):
         self.nav_stats_btn.setProperty("class", "")
         self.nav_ruangan_btn.setProperty("class", "active")
+        self.nav_pengguna_btn.setProperty("class", "")
         # Refresh stylesheet properties
         self.nav_stats_btn.style().unpolish(self.nav_stats_btn)
         self.nav_stats_btn.style().polish(self.nav_stats_btn)
         self.nav_ruangan_btn.style().unpolish(self.nav_ruangan_btn)
         self.nav_ruangan_btn.style().polish(self.nav_ruangan_btn)
+        self.nav_pengguna_btn.style().unpolish(self.nav_pengguna_btn)
+        self.nav_pengguna_btn.style().polish(self.nav_pengguna_btn)
         
         self.stacked_widget.setCurrentIndex(1)
         self.rooms_widget.refresh_data()
+
+    def show_users_view(self):
+        self.nav_stats_btn.setProperty("class", "")
+        self.nav_ruangan_btn.setProperty("class", "")
+        self.nav_pengguna_btn.setProperty("class", "active")
+        # Refresh stylesheet properties
+        self.nav_stats_btn.style().unpolish(self.nav_stats_btn)
+        self.nav_stats_btn.style().polish(self.nav_stats_btn)
+        self.nav_ruangan_btn.style().unpolish(self.nav_ruangan_btn)
+        self.nav_ruangan_btn.style().polish(self.nav_ruangan_btn)
+        self.nav_pengguna_btn.style().unpolish(self.nav_pengguna_btn)
+        self.nav_pengguna_btn.style().polish(self.nav_pengguna_btn)
+        
+        self.stacked_widget.setCurrentIndex(2)
+        self.users_widget.refresh_data()
 
     def refresh_data(self):
         # Dipanggil saat window dibuka utama
