@@ -66,9 +66,8 @@ class MahasiswaPage(QWidget):
         booking_btn = QPushButton("Jadwal Ruangan")
         history_btn = QPushButton("Peminjaman Saya")
         profile_btn = QPushButton("Riwayat")
-        setting_btn = QPushButton("Pengaturan")
 
-        buttons = [dashboard_btn, booking_btn, history_btn, profile_btn, setting_btn]
+        buttons = [dashboard_btn, booking_btn, history_btn, profile_btn]
 
         for btn in buttons:
             btn.setCursor(Qt.PointingHandCursor)
