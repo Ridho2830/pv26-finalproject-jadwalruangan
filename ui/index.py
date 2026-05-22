@@ -46,13 +46,18 @@ class StatusRuanganView(QWidget):
         left_layout = QHBoxLayout()
         left_layout.setSpacing(12)
         
+        logo_container = QFrame()
+        logo_container.setObjectName("logo_container")
+        logo_layout = QHBoxLayout(logo_container)
+        logo_layout.setContentsMargins(8, 8, 8, 8)
         logo_label = QLabel("🏢") 
-        logo_label.setStyleSheet("font-size: 20px; background-color: transparent;")
+        logo_label.setStyleSheet("font-size: 18px; background-color: transparent;")
+        logo_layout.addWidget(logo_label)
         
-        title_label = QLabel("ReservasiKampus")
+        title_label = QLabel('<span style="color: #00e5cc;">Reservasi</span><span style="color: #00e5cc;">Kampus</span>')
         title_label.setObjectName("header_title")
         
-        left_layout.addWidget(logo_label, alignment=Qt.AlignVCenter)
+        left_layout.addWidget(logo_container, alignment=Qt.AlignVCenter)
         left_layout.addWidget(title_label, alignment=Qt.AlignVCenter)
         
         # ─── Sisi Kanan: Theme Toggle, Jam Real-Time & Login ───
@@ -96,75 +101,69 @@ class StatusRuanganView(QWidget):
 
     def update_time(self):
         current_time = QDateTime.currentDateTime()
-        hari = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"]
+        hari = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
         nama_hari = hari[current_time.date().dayOfWeek() - 1]
         
         bulan = ["", "Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
         nama_bulan = bulan[current_time.date().month()]
         
         tanggal = current_time.date().day()
-        tahun = current_time.date().year()
-        waktu = current_time.toString("HH:mm:ss")
+        waktu = current_time.toString("HH:mm")
         
-        self.time_label.setText(f"{nama_hari}, {tanggal:02d} {nama_bulan} {tahun} | {waktu}")
+        self.time_label.setText(f"🕒 {nama_hari}, {tanggal:02d} {nama_bulan} · {waktu}")
 
     def create_filter_section(self):
         filter_widget = QWidget()
         filter_widget.setObjectName("filter_section")
-        filter_widget.setStyleSheet("#filter_section { background-color: transparent; }")
         filter_layout = QHBoxLayout(filter_widget)
-        filter_layout.setContentsMargins(24, 16, 24, 16)
-        filter_layout.setSpacing(12)
+        filter_layout.setContentsMargins(24, 12, 24, 12)
+        filter_layout.setSpacing(24)
         
-        self.stats_widget = QWidget()
-        self.stats_widget.setObjectName("stats_container")
-        self.stats_widget.setStyleSheet("#stats_container { background-color: transparent; }")
-        stats_layout = QHBoxLayout(self.stats_widget)
-        stats_layout.setContentsMargins(0, 0, 0, 0)
-        stats_layout.setSpacing(12)
+        # Sisi Kiri: Tab Filter
+        tab_layout = QHBoxLayout()
+        tab_layout.setSpacing(20)
         
-        self.stat_labels = {}
+        self.filter_buttons = {}
+        filters = ["Semua Ruangan", "Tersedia", "Terbooking", "Terpakai"]
         
-        def create_stat_chip(color, key):
-            chip = QFrame()
-            chip.setProperty("class", "stat_chip")
-            chip.setFixedSize(44, 44)
-            
-            l = QVBoxLayout(chip)
-            l.setContentsMargins(2, 4, 2, 4)
-            l.setSpacing(2)
-            
-            dot = QLabel()
-            dot.setFixedSize(8, 8)
-            dot.setStyleSheet(f"background-color: {color}; border-radius: 4px;")
-            
-            count_lbl = QLabel("0")
-            count_lbl.setStyleSheet("font-size: 14px; font-weight: bold; background-color: transparent;")
-            count_lbl.setAlignment(Qt.AlignCenter)
-            
-            self.stat_labels[key] = count_lbl
-            
-            l.addWidget(dot, alignment=Qt.AlignHCenter)
-            l.addWidget(count_lbl, alignment=Qt.AlignHCenter)
-            return chip
-            
-        stats_layout.addWidget(create_stat_chip("#22C55E", "Tersedia"))
-        stats_layout.addWidget(create_stat_chip("#F59E0B", "Terbooking"))
-        stats_layout.addWidget(create_stat_chip("#EF4444", "Terpakai"))
+        for f in filters:
+            btn = QPushButton(f)
+            btn.setProperty("class", "filter_tab")
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.clicked.connect(partial(self._on_filter_tab_clicked, f))
+            self.filter_buttons[f] = btn
+            tab_layout.addWidget(btn)
         
-        filter_layout.addWidget(self.stats_widget)
+        self.filter_buttons["Semua Ruangan"].setProperty("class", "filter_tab active")
+        self.current_filter = "Semua"
+            
+        # Sisi Kanan: Teks Statistik
+        self.stats_label = QLabel("0 TERSEDIA · 0 TERBOOKING · 0 TERPAKAI")
+        self.stats_label.setObjectName("stats_text")
+        self.stats_label.setAlignment(Qt.AlignVCenter | Qt.AlignRight)
+        
+        filter_layout.addLayout(tab_layout)
         filter_layout.addStretch()
+        filter_layout.addWidget(self.stats_label)
         
-        self.status_combo = QComboBox()
-        self.status_combo.addItems(["Status: Semua", "Tersedia", "Terbooking", "Terpakai"])
-        self.status_combo.setFixedWidth(150)
-        self.status_combo.currentIndexChanged.connect(self._on_filter_changed)
-        
-        filter_layout.addWidget(self.status_combo)
         self.main_layout.addWidget(filter_widget)
 
-    def _on_filter_changed(self):
-        """Memanggil refresh data untuk menyaring kartu."""
+    def _on_filter_tab_clicked(self, filter_name):
+        for name, btn in self.filter_buttons.items():
+            btn.setProperty("class", "filter_tab")
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+            
+        clicked_btn = self.filter_buttons[filter_name]
+        clicked_btn.setProperty("class", "filter_tab active")
+        clicked_btn.style().unpolish(clicked_btn)
+        clicked_btn.style().polish(clicked_btn)
+        
+        if filter_name == "Semua Ruangan":
+            self.current_filter = "Semua"
+        else:
+            self.current_filter = filter_name
+            
         self.refresh_data()
 
     def create_main_canvas(self):
@@ -206,18 +205,15 @@ class StatusRuanganView(QWidget):
 
     def refresh_data(self):
         """Memperbarui data ruangan dari database Supabase dan merender kartu ruangan."""
+        if hasattr(self, 'anim_group') and self.anim_group.state() == QParallelAnimationGroup.Running:
+            self.anim_group.stop()
+            
         self.clear_layout(self.canvas_layout)
         self.cards = []
         self.rooms_raw = []
         
         # Ambil filter status aktif
-        filter_text = "Semua"
-        if hasattr(self, 'status_combo'):
-            combo_val = self.status_combo.currentText()
-            if ":" in combo_val:
-                filter_text = combo_val.split(":")[-1].strip()
-            else:
-                filter_text = combo_val.strip()
+        filter_text = getattr(self, 'current_filter', 'Semua')
 
         # Fetch data dari Supabase
         from api.supabase import get_supabase_client
@@ -270,10 +266,8 @@ class StatusRuanganView(QWidget):
             self.rooms_raw.append(r)
         
         # Update label statistik
-        if hasattr(self, 'stat_labels'):
-            for key, count in counts.items():
-                if key in self.stat_labels:
-                    self.stat_labels[key].setText(str(count))
+        if hasattr(self, 'stats_label'):
+            self.stats_label.setText(f"{counts.get('Tersedia', 0)} TERSEDIA · {counts.get('Terbooking', 0)} TERBOOKING · {counts.get('Terpakai', 0)} TERPAKAI")
         
         # Render kartu ruangan
         if not filtered_rooms:
@@ -417,7 +411,13 @@ class StatusRuanganView(QWidget):
                 seq_group.addAnimation(pause)
                 seq_group.addAnimation(anim)
                 
-                seq_group.finished.connect(lambda c=container: c.setGraphicsEffect(None))
+                def safe_remove_effect(c=container):
+                    try:
+                        c.setGraphicsEffect(None)
+                    except RuntimeError:
+                        pass
+                
+                seq_group.finished.connect(safe_remove_effect)
                 self.anim_group.addAnimation(seq_group)
         self.anim_group.start()
 

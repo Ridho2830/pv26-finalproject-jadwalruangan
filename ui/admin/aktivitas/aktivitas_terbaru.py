@@ -12,6 +12,7 @@ class AktivitasTerbaruWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setAttribute(Qt.WA_StyledBackground, True)
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
         self.main_layout.setSpacing(0)
@@ -26,7 +27,7 @@ class AktivitasTerbaruWidget(QWidget):
         recent_layout.setSpacing(12)
         
         recent_title = QLabel("📅 AKTIVITAS RESERVASI TERBARU")
-        recent_title.setStyleSheet("font-size: 12px; font-weight: 700; color: #6b5e8a; background-color: transparent;")
+        recent_title.setProperty("class", "dashboard_section_title")
         recent_layout.addWidget(recent_title)
         
         self.table = QTableWidget()
@@ -36,24 +37,15 @@ class AktivitasTerbaruWidget(QWidget):
         ])
         
         # Styling table
-        self.table.setFixedHeight(200)
+        self.table.setFixedHeight(240)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setFocusPolicy(Qt.NoFocus)
         self.table.setShowGrid(False)
         self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(46)
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         
-        # Transparent background and item styling to blend with the card
-        self.table.setStyleSheet("""
-            QTableWidget {
-                background-color: transparent;
-                border: none;
-            }
-            QTableWidget::item {
-                border-bottom: 1px solid rgba(147, 90, 255, 0.08);
-                padding: 6px;
-            }
-        """)
+        self.table.setObjectName("aktivitas_table")
         
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Stretch)
@@ -107,34 +99,50 @@ class AktivitasTerbaruWidget(QWidget):
                 status_val = res.get('status', 'Pending')
                 
                 # Widgets
-                item_user = QTableWidgetItem(user_name)
-                item_user.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                user_widget = QWidget()
+                user_layout = QHBoxLayout(user_widget)
+                user_layout.setContentsMargins(12, 0, 12, 0)
+                user_lbl = QLabel(user_name)
+                user_lbl.setStyleSheet("font-weight: 700; font-size: 13px; background-color: transparent;")
+                user_layout.addWidget(user_lbl)
+                self.table.setCellWidget(row_idx, 0, user_widget)
                 
-                item_room = QTableWidgetItem(room_name)
-                item_room.setTextAlignment(Qt.AlignCenter)
+                room_widget = QWidget()
+                room_layout = QHBoxLayout(room_widget)
+                room_layout.setContentsMargins(12, 0, 12, 0)
+                room_lbl = QLabel(room_name)
+                room_lbl.setStyleSheet("font-weight: 600; font-size: 12px; color: #6b6b80; background-color: transparent;")
+                room_layout.addWidget(room_lbl)
+                room_layout.setAlignment(Qt.AlignCenter)
+                self.table.setCellWidget(row_idx, 1, room_widget)
                 
                 item_date = QTableWidgetItem(tanggal)
                 item_date.setTextAlignment(Qt.AlignCenter)
+                self.table.setItem(row_idx, 2, item_date)
                 
                 item_time = QTableWidgetItem(durasi)
                 item_time.setTextAlignment(Qt.AlignCenter)
+                self.table.setItem(row_idx, 3, item_time)
                 
-                item_status = QTableWidgetItem(status_val)
-                item_status.setTextAlignment(Qt.AlignCenter)
+                status_widget = QWidget()
+                status_layout = QHBoxLayout(status_widget)
+                status_layout.setContentsMargins(12, 0, 12, 0)
+                status_badge = QLabel(status_val)
                 
                 # Color status
+                badge_class = "badge badge_available" # using available style for approved
                 if status_val == "Disetujui":
-                    item_status.setForeground(QColor("#10B981"))
+                    badge_class = "badge badge_available"
                 elif status_val == "Pending":
-                    item_status.setForeground(QColor("#F59E0B"))
+                    badge_class = "badge badge_booked"
                 else:
-                    item_status.setForeground(QColor("#EF4444"))
+                    badge_class = "badge badge_in_use"
                     
-                self.table.setItem(row_idx, 0, item_user)
-                self.table.setItem(row_idx, 1, item_room)
-                self.table.setItem(row_idx, 2, item_date)
-                self.table.setItem(row_idx, 3, item_time)
-                self.table.setItem(row_idx, 4, item_status)
+                status_badge.setProperty("class", badge_class)
+                status_badge.setAlignment(Qt.AlignCenter)
+                status_layout.addWidget(status_badge)
+                status_layout.setAlignment(Qt.AlignCenter)
+                self.table.setCellWidget(row_idx, 4, status_widget)
                 
         except Exception as e:
             print(f"Error loading aktivitas terbaru: {e}")

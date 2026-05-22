@@ -9,6 +9,8 @@ from api.supabase import get_supabase_client
 class LoginPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setObjectName("login_page")
         
         # Outer layout containing the scroll area
         self.outer_layout = QVBoxLayout(self)

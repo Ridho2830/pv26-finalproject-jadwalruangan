@@ -12,6 +12,7 @@ class KelolaRuanganWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setAttribute(Qt.WA_StyledBackground, True)
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(32, 32, 32, 32)
         self.main_layout.setSpacing(24)
@@ -51,6 +52,7 @@ class KelolaRuanganWidget(QWidget):
         self.table.setFocusPolicy(Qt.NoFocus)
         self.table.setShowGrid(False)
         self.table.setAlternatingRowColors(False)
+        self.table.verticalHeader().setVisible(False)
         
         # Setup Column stretching
         header = self.table.horizontalHeader()
@@ -61,7 +63,9 @@ class KelolaRuanganWidget(QWidget):
         header.setSectionResizeMode(4, QHeaderView.ResizeToContents) # Status
         header.setSectionResizeMode(5, QHeaderView.Stretch)          # Fasilitas
         header.setSectionResizeMode(6, QHeaderView.Fixed)            # Aksi
-        self.table.setColumnWidth(6, 150) # Width for action buttons
+        self.table.setColumnWidth(6, 160) # Width for action buttons
+        
+        self.table.verticalHeader().setDefaultSectionSize(60) # Taller rows for premium feel
         
         self.main_layout.addWidget(self.table)
 
@@ -83,42 +87,74 @@ class KelolaRuanganWidget(QWidget):
                 self.table.insertRow(row_idx)
                 
                 # Column data
-                nama = QTableWidgetItem(str(room.get('nama', '-')))
-                nama.setTextAlignment(Qt.AlignCenter)
+                # Kolom 0: Nama Ruangan (Bold)
+                nama_widget = QWidget()
+                nama_layout = QHBoxLayout(nama_widget)
+                nama_layout.setContentsMargins(16, 0, 16, 0)
+                nama_lbl = QLabel(str(room.get('nama', '-')))
+                nama_lbl.setStyleSheet("font-weight: 800; font-size: 14px; background-color: transparent;")
+                nama_layout.addWidget(nama_lbl)
+                nama_layout.setAlignment(Qt.AlignCenter)
+                self.table.setCellWidget(row_idx, 0, nama_widget)
                 
-                gedung = QTableWidgetItem(str(room.get('gedung', '-')))
-                gedung.setTextAlignment(Qt.AlignCenter)
+                # Kolom 1: Gedung
+                gedung_widget = QWidget()
+                gedung_layout = QHBoxLayout(gedung_widget)
+                gedung_layout.setContentsMargins(16, 0, 16, 0)
+                gedung_lbl = QLabel(str(room.get('gedung', '-')))
+                gedung_lbl.setStyleSheet("font-weight: 600; font-size: 13px; color: #6b6b80; background-color: transparent;")
+                gedung_layout.addWidget(gedung_lbl)
+                gedung_layout.setAlignment(Qt.AlignCenter)
+                self.table.setCellWidget(row_idx, 1, gedung_widget)
                 
+                # Kolom 2: Lantai
                 lantai = QTableWidgetItem(str(room.get('lantai', '-')))
                 lantai.setTextAlignment(Qt.AlignCenter)
+                self.table.setItem(row_idx, 2, lantai)
                 
-                kapasitas = QTableWidgetItem(f"{room.get('kapasitas', '-')} orang")
-                kapasitas.setTextAlignment(Qt.AlignCenter)
+                # Kolom 3: Kapasitas
+                kapasitas_widget = QWidget()
+                kapasitas_layout = QHBoxLayout(kapasitas_widget)
+                kapasitas_layout.setContentsMargins(16, 0, 16, 0)
+                kapasitas_lbl = QLabel(f"{room.get('kapasitas', '-')} orang")
+                kapasitas_lbl.setStyleSheet("font-size: 13px; color: #8888a0; background-color: transparent;")
+                kapasitas_layout.addWidget(kapasitas_lbl)
+                kapasitas_layout.setAlignment(Qt.AlignCenter)
+                self.table.setCellWidget(row_idx, 3, kapasitas_widget)
                 
+                # Kolom 4: Status (Badge)
                 status_val = str(room.get('status', 'Tersedia'))
-                # Fallback mapping if database has legacy values
-                if status_val == "Digunakan" or status_val in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
+                if status_val in ("Digunakan", "Tidak Tersedia", "Nonaktif", "Maintenance"):
                     status_val = "Terpakai"
                 elif status_val == "Dosen":
                     status_val = "Terbooking"
-                    
-                status = QTableWidgetItem(status_val)
-                status.setTextAlignment(Qt.AlignCenter)
-                if status_val == "Tersedia":
-                    status.setForeground(QColor("#10B981"))
-                elif status_val == "Terbooking":
-                    status.setForeground(QColor("#F59E0B"))
-                else:
-                    status.setForeground(QColor("#EF4444"))
-                    
-                fasilitas = QTableWidgetItem(str(room.get('fasilitas', '-')))
                 
-                self.table.setItem(row_idx, 0, nama)
-                self.table.setItem(row_idx, 1, gedung)
-                self.table.setItem(row_idx, 2, lantai)
-                self.table.setItem(row_idx, 3, kapasitas)
-                self.table.setItem(row_idx, 4, status)
-                self.table.setItem(row_idx, 5, fasilitas)
+                status_widget = QWidget()
+                status_layout = QHBoxLayout(status_widget)
+                status_layout.setContentsMargins(16, 0, 16, 0)
+                status_badge = QLabel(status_val)
+                
+                badge_class = "badge badge_available"
+                if status_val == "Terbooking":
+                    badge_class = "badge badge_booked"
+                elif status_val == "Terpakai":
+                    badge_class = "badge badge_in_use"
+                    
+                status_badge.setProperty("class", badge_class)
+                status_badge.setAlignment(Qt.AlignCenter)
+                status_layout.addWidget(status_badge)
+                status_layout.setAlignment(Qt.AlignCenter)
+                self.table.setCellWidget(row_idx, 4, status_widget)
+                
+                # Kolom 5: Fasilitas (Bisa panjang)
+                fasilitas_widget = QWidget()
+                fasilitas_layout = QHBoxLayout(fasilitas_widget)
+                fasilitas_layout.setContentsMargins(16, 0, 16, 0)
+                fasilitas_lbl = QLabel(str(room.get('fasilitas', '-')))
+                fasilitas_lbl.setStyleSheet("font-size: 12px; color: #6b6b80; background-color: transparent;")
+                fasilitas_lbl.setWordWrap(True)
+                fasilitas_layout.addWidget(fasilitas_lbl)
+                self.table.setCellWidget(row_idx, 5, fasilitas_widget)
                 
                 # Action Buttons
                 self._add_action_buttons(row_idx, room)
@@ -130,7 +166,7 @@ class KelolaRuanganWidget(QWidget):
     def _add_action_buttons(self, row_idx, room):
         # Widget container untuk tombol aksi
         actions_widget = QWidget()
-        actions_widget.setStyleSheet("background-color: transparent;")
+        actions_widget.setStyleSheet("QWidget { background-color: transparent; }")
         actions_layout = QHBoxLayout(actions_widget)
         actions_layout.setContentsMargins(6, 2, 6, 2)
         actions_layout.setSpacing(8)

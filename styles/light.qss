@@ -27,55 +27,8 @@ QScrollBar::handle:vertical:hover {
 }
 QScrollBar::add-line:vertical,
 QScrollBar::sub-line:vertical { height: 0px; }
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-    background: none;
-}
-
-/* ── Admin Dashboard Dynamic Typography ──────────────── */
-.dashboard_section_title {
-    font-size: 12px;
-    font-weight: 700;
-    color: #6b5e8a;
-    background-color: transparent;
-}
-
-.dashboard_legend_text {
-    font-size: 11px;
-    font-weight: 600;
-    color: #8888a0;
-    background-color: transparent;
-}
-
-.kpi_title {
-    font-size: 11px;
-    font-weight: 700;
-    color: #6b5e8a;
-    background-color: transparent;
-}
-
-.building_name {
-    font-size: 12px;
-    font-weight: 600;
-    color: #0e0e1a;
-    background-color: transparent;
-}
-
-.building_pct {
-    font-size: 11px;
-    font-weight: bold;
-    color: #00b8a9;
-    background-color: transparent;
-}
-
-QTableWidget#aktivitas_table {
-    background-color: transparent;
-    border: none;
-}
-
-QTableWidget#aktivitas_table::item {
-    border-bottom: 1px solid #e2e2ea;
-    padding: 6px;
-}
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical { background: none; }
 
 QScrollBar:horizontal {
     background: #eaeaef;
@@ -104,13 +57,6 @@ QScrollBar::sub-line:horizontal { width: 0px; }
 #header QLabel {
     background-color: transparent;
     color: #0e0e1a;
-}
-
-#logo_container {
-    background-color: rgba(0, 184, 169, 0.05);
-    border: 1px solid rgba(0, 184, 169, 0.2);
-    border-radius: 8px;
-    padding: 0px;
 }
 
 #header_title {
@@ -174,35 +120,23 @@ QScrollBar::sub-line:horizontal { width: 0px; }
 
 /* ── Filter Section ──────────────────────────────── */
 #filter_section {
-    background-color: #f4f4f8;
+    background-color: #ffffff;
     border-bottom: 1px solid #e2e2ea;
     padding: 10px 0px;
 }
 
-.filter_tab {
-    background: transparent;
-    border: none;
-    color: #8888a0;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 8px 0px;
+.stat_chip {
+    background-color: #f4f4f8;
+    border: 1px solid #e2e2ea;
+    border-radius: 20px;
+    padding: 5px 12px;
 }
 
-.filter_tab:hover {
-    color: #0e0e1a;
-}
-
-.filter_tab[class="filter_tab active"] {
-    color: #00b8a9;
-    font-weight: 700;
-}
-
-#stats_text {
-    color: #8888a0;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1px;
+.stat_chip QLabel {
     background-color: transparent;
+    color: #6b6b80;
+    font-size: 12px;
+    font-weight: 600;
 }
 
 /* ── Inputs & Comboboxes ─────────────────────────── */
@@ -468,6 +402,10 @@ QComboBox QAbstractItemView {
     border-color: #ef4444;
 }
 
+.stat_chip {
+    background-color: transparent;
+    border: none;
+}
 
 /* ── QTableWidget & Tables ────────────────────────── */
 QTableWidget {
@@ -578,7 +516,8 @@ QTableWidget QTableCornerButton::section {
     letter-spacing: 0.8px;
 }
 
-#login_container #login_btn {
+#login_container #login_btn,
+QPushButton#login_btn {
     background-color: #00b8a9;
     color: #ffffff;
     border: none;
@@ -588,7 +527,8 @@ QTableWidget QTableCornerButton::section {
     padding: 10px 0;
 }
 
-#login_container #login_btn:hover {
+#login_container #login_btn:hover,
+QPushButton#login_btn:hover {
     background-color: #009f92;
     color: #ffffff;
 }

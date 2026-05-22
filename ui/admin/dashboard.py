@@ -246,6 +246,7 @@ class AdminDashboardStatsWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setAttribute(Qt.WA_StyledBackground, True)
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(32, 32, 32, 32)
         self.main_layout.setSpacing(24)
@@ -294,7 +295,7 @@ class AdminDashboardStatsWidget(QWidget):
         self.util_layout.setSpacing(12)
         
         util_title = QLabel("📊 UTILITAS GEDUNG")
-        util_title.setStyleSheet("font-size: 12px; font-weight: 700; color: #6b5e8a; background-color: transparent;")
+        util_title.setProperty("class", "dashboard_section_title")
         self.util_layout.addWidget(util_title)
         
         self.util_list_layout = QVBoxLayout()
@@ -310,7 +311,7 @@ class AdminDashboardStatsWidget(QWidget):
         chart_layout.setSpacing(12)
         
         chart_title = QLabel("🍩 PROPORSI STATUS RUANGAN")
-        chart_title.setStyleSheet("font-size: 12px; font-weight: 700; color: #6b5e8a; background-color: transparent;")
+        chart_title.setProperty("class", "dashboard_section_title")
         chart_layout.addWidget(chart_title)
         
         self.donut_chart = RoomStatusDonutChart()
@@ -332,7 +333,7 @@ class AdminDashboardStatsWidget(QWidget):
             dot.setStyleSheet(f"background-color: {color}; border-radius: 4px;")
             
             lbl = QLabel(label)
-            lbl.setStyleSheet("font-size: 11px; font-weight: 600; color: #a899c8; background-color: transparent;")
+            lbl.setProperty("class", "dashboard_legend_text")
             
             l.addWidget(dot)
             l.addWidget(lbl)
@@ -365,7 +366,7 @@ class AdminDashboardStatsWidget(QWidget):
         # Header Tren Card (Title + Toggle Buttons)
         trend_header = QHBoxLayout()
         trend_title = QLabel("📈 TREN RESERVASI RUANGAN")
-        trend_title.setStyleSheet("font-size: 12px; font-weight: 700; color: #6b5e8a; background-color: transparent;")
+        trend_title.setProperty("class", "dashboard_section_title")
         trend_header.addWidget(trend_title)
         trend_header.addStretch()
         
@@ -408,7 +409,7 @@ class AdminDashboardStatsWidget(QWidget):
         l.setSpacing(4)
         
         title_lbl = QLabel(title)
-        title_lbl.setStyleSheet("font-size: 11px; font-weight: 700; color: #6b5e8a; background-color: transparent;")
+        title_lbl.setProperty("class", "kpi_title")
         
         val_lbl = QLabel(value)
         val_lbl.setStyleSheet(f"font-size: 24px; font-weight: 800; color: {color_hex}; background-color: transparent;")
@@ -579,7 +580,7 @@ class AdminDashboardStatsWidget(QWidget):
                 b_layout.setContentsMargins(0, 4, 0, 4)
                 
                 b_label = QLabel(f"{b_name} ({act}/{tot} Ruang)")
-                b_label.setStyleSheet("font-size: 12px; font-weight: 600; color: #f0e8ff; background-color: transparent;")
+                b_label.setProperty("class", "building_name")
                 b_label.setFixedWidth(160)
                 
                 pbar = QProgressBar()
@@ -600,7 +601,7 @@ class AdminDashboardStatsWidget(QWidget):
                 """)
                 
                 pct_label = QLabel(f"{pct}%")
-                pct_label.setStyleSheet("font-size: 11px; font-weight: bold; color: #c084fc; background-color: transparent;")
+                pct_label.setProperty("class", "building_pct")
                 pct_label.setFixedWidth(30)
                 pct_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
                 
@@ -629,6 +630,8 @@ class AdminDashboard(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setObjectName("admin_dashboard")
         
         # Main Layout (Horizontal split: Sidebar and Content Area)
         self.main_layout = QHBoxLayout(self)
