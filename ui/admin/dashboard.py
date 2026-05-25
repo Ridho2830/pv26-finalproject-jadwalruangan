@@ -1,456 +1,895 @@
-from PySide6.QtCore import Qt, QSize, QRect, QPoint, Signal, Slot
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-                                QPushButton, QFrame, QStackedWidget,
-                                QScrollArea, QGridLayout, QSizePolicy, QLayout, QLayoutItem, QLineEdit)
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QCursor
+"""
+Admin Dashboard - ReservasiKampus
+UI/UX improvements:
+  - Clean 3-zone layout: fixed sidebar | scrollable main | slide-in detail panel
+  - Impactful KPI strip with color-coded accents
+  - Polished RoomCard with status ring indicator
+  - Smooth detail panel with animated CubeWidget
+  - Consistent dark/light theming via a central palette dict
+  - Better typography hierarchy & spacing
+"""
+
+from PySide6.QtCore import Qt, QSize, QRect, QPoint, Signal, Slot, QPropertyAnimation, QEasingCurve, QTimer
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QPushButton, QFrame, QScrollArea, QSizePolicy,
+    QLayout, QLayoutItem, QLineEdit, QGraphicsOpacityEffect,
+    QSpacerItem, QApplication,
+)
+from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QCursor, QPixmap
 from utils.components import CubeWidget
 from api.supabase import get_supabase_client
 from ui.chatbot import ChatbotDialog
-from datetime import datetime
 
+# ──────────────────────────────────────────────
+#  PALETTE  (single source of truth)
+# ──────────────────────────────────────────────
+LIGHT = {
+    "bg":           "#f0f4ff",
+    "surface":      "#ffffff",
+    "surface2":     "#f8faff",
+    "border":       "#e4e9f5",
+    "sidebar_bg":   "#1c1854",
+    "sidebar_act":  "#312e81",
+    "text_h":       "#0f172a",
+    "text_b":       "#334155",
+    "text_m":       "#64748b",
+    "text_s":       "#94a3b8",
+    "accent":       "#4f46e5",
+    "accent_light": "#ede9fe",
+    "warn_bg":      "#fff7ed",
+    "warn_text":    "#c2410c",
+    "warn_border":  "#fed7aa",
+}
+DARK = {
+    "bg":           "#0a0f1e",
+    "surface":      "#111827",
+    "surface2":     "#1e293b",
+    "border":       "#1e293b",
+    "sidebar_bg":   "#050a14",
+    "sidebar_act":  "#1e1b4b",
+    "text_h":       "#f1f5f9",
+    "text_b":       "#cbd5e1",
+    "text_m":       "#94a3b8",
+    "text_s":       "#475569",
+    "accent":       "#818cf8",
+    "accent_light": "#1e1b4b",
+    "warn_bg":      "#1c0f00",
+    "warn_text":    "#fb923c",
+    "warn_border":  "#431407",
+}
+
+STATUS_META = {
+    "Tersedia": {
+        "color": "#22c55e", "bg": "rgba(34,197,94,0.12)",
+        "text": "#14532d", "label": "Tersedia",
+    },
+    "Digunakan": {
+        "color": "#ef4444", "bg": "rgba(239,68,68,0.12)",
+        "text": "#7f1d1d", "label": "Digunakan",
+    },
+    "Dosen": {
+        "color": "#3b82f6", "bg": "rgba(59,130,246,0.12)",
+        "text": "#1e3a8a", "label": "Dosen Booked",
+    },
+    "Konflik": {
+        "color": "#f97316", "bg": "rgba(249,115,22,0.12)",
+        "text": "#7c2d12", "label": "Konflik!",
+    },
+}
+
+def normalize_status(raw: str) -> str:
+    raw = raw or "Tersedia"
+    if raw in ("Digunakan", "Terpakai"):  return "Digunakan"
+    if raw in ("Dosen", "Terbooking"):    return "Dosen"
+    if raw == "Konflik":                  return "Konflik"
+    return "Tersedia"
+
+
+# ──────────────────────────────────────────────
+#  FLOW LAYOUT  (unchanged logic, kept compact)
+# ──────────────────────────────────────────────
 class FlowLayout(QLayout):
-    def __init__(self, parent=None, margin=-1, hSpacing=-1, vSpacing=-1):
+    def addWidget(self, w): super().addWidget(w)
+    def __init__(self, parent=None, margin=0, hSpacing=12, vSpacing=12):
         super().__init__(parent)
         if margin != -1: self.setContentsMargins(margin, margin, margin, margin)
-        self._hSpace = hSpacing
-        self._vSpace = vSpacing
-        self.itemList = []
-
+        self._hSpace, self._vSpace, self.itemList = hSpacing, vSpacing, []
     def __del__(self):
         item = self.takeAt(0)
         while item: item = self.takeAt(0)
-
-    def addItem(self, item): self.itemList.append(item)
-    def horizontalSpacing(self): return self._hSpace if self._hSpace >= 0 else self.spacing()
-    def verticalSpacing(self): return self._vSpace if self._vSpace >= 0 else self.spacing()
-    def count(self): return len(self.itemList)
-    def itemAt(self, index): return self.itemList[index] if 0 <= index < len(self.itemList) else None
-    def takeAt(self, index): return self.itemList.pop(index) if 0 <= index < len(self.itemList) else None
-    def expandingDirections(self): return Qt.Orientations(0)
-    def hasHeightForWidth(self): return True
-    def heightForWidth(self, width): return self.doLayout(QRect(0, 0, width, 0), True)
+    def addItem(self, item):            self.itemList.append(item)
+    def horizontalSpacing(self):        return self._hSpace
+    def verticalSpacing(self):          return self._vSpace
+    def count(self):                    return len(self.itemList)
+    def itemAt(self, i):                return self.itemList[i] if 0 <= i < len(self.itemList) else None
+    def takeAt(self, i):                return self.itemList.pop(i) if 0 <= i < len(self.itemList) else None
+    def expandingDirections(self):      return Qt.Orientations(0)
+    def hasHeightForWidth(self):        return True
+    def heightForWidth(self, w):        return self.doLayout(QRect(0, 0, w, 0), True)
     def setGeometry(self, rect):
-        super().setGeometry(rect)
-        self.doLayout(rect, False)
-    def sizeHint(self): return self.minimumSize()
+        super().setGeometry(rect); self.doLayout(rect, False)
+    def sizeHint(self):                 return self.minimumSize()
     def minimumSize(self):
-        size = QSize()
-        for item in self.itemList: size = size.expandedTo(item.minimumSize())
+        s = QSize()
+        for item in self.itemList: s = s.expandedTo(item.minimumSize())
         m = self.contentsMargins()
-        size += QSize(m.left() + m.right(), m.top() + m.bottom())
-        return size
+        return s + QSize(m.left()+m.right(), m.top()+m.bottom())
     def doLayout(self, rect, testOnly):
-        m = self.contentsMargins()
-        effectiveRect = rect.adjusted(m.left(), m.top(), -m.right(), -m.bottom())
-        x, y, lineHeight = effectiveRect.x(), effectiveRect.y(), 0
+        m  = self.contentsMargins()
+        er = rect.adjusted(m.left(), m.top(), -m.right(), -m.bottom())
+        x, y, lineH = er.x(), er.y(), 0
         for item in self.itemList:
-            wid = item.widget()
-            spaceX = self.horizontalSpacing()
-            if spaceX == -1: spaceX = wid.style().layoutSpacing(QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Horizontal)
-            spaceY = self.verticalSpacing()
-            if spaceY == -1: spaceY = wid.style().layoutSpacing(QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Vertical)
-            nextX = x + item.sizeHint().width() + spaceX
-            if nextX - spaceX > effectiveRect.right() and lineHeight > 0:
-                x, y = effectiveRect.x(), y + lineHeight + spaceY
-                nextX = x + item.sizeHint().width() + spaceX
-                lineHeight = 0
+            nX = x + item.sizeHint().width() + self._hSpace
+            if nX - self._hSpace > er.right() and lineH > 0:
+                x, y = er.x(), y + lineH + self._vSpace
+                nX = x + item.sizeHint().width() + self._hSpace
+                lineH = 0
             if not testOnly: item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
-            x = nextX
-            lineHeight = max(lineHeight, item.sizeHint().height())
-        return y + lineHeight - rect.y() + m.bottom()
+            x = nX
+            lineH = max(lineH, item.sizeHint().height())
+        return y + lineH - rect.y() + m.bottom()
 
 
+# ──────────────────────────────────────────────
+#  ROOM CARD
+# ──────────────────────────────────────────────
 class RoomCard(QFrame):
     clicked = Signal(dict)
-    
-    def __init__(self, room_data, parent=None):
+
+    def __init__(self, room_data: dict, parent=None):
         super().__init__(parent)
-        self.room_data = room_data
-        self.setObjectName("room_card")
-        self.setFixedSize(220, 280)
+        self.room_data  = room_data
+        self.status_key = normalize_status(room_data.get("status", "Tersedia"))
+        self.meta       = STATUS_META[self.status_key]
+        self.is_dark    = False
+
+        self.setObjectName("RoomCard")
+        self.setFixedSize(210, 190)
         self.setCursor(QCursor(Qt.PointingHandCursor))
-        
-        status = room_data.get('status', 'Tersedia')
-        if status in ("Digunakan", "Terpakai"): status = "Digunakan"
-        elif status in ("Dosen", "Terbooking"): status = "Dosen"
-        elif status == "Konflik": status = "Konflik"
-        else: status = "Tersedia"
-        
-        colors = {
-            "Tersedia": ("#4ade80", "#f0fdf4", "#166534"),
-            "Digunakan": ("#ef4444", "#fef2f2", "#991b1b"),
-            "Dosen": ("#60a5fa", "#eff6ff", "#1e3a8a"),
-            "Konflik": ("#f97316", "#fff7ed", "#9a3412")
-        }
-        
-        self.hex_color, self.bg_light, self.text_color = colors.get(status, colors["Tersedia"])
-        
-        self.setStyleSheet(f"""
-            QFrame#room_card {{
-                background-color: white;
-                border: 2px solid {'#f97316' if status == 'Konflik' else '#e2e8f0'};
-                border-radius: 12px;
-            }}
-            QFrame#room_card:hover {{
-                border-color: {self.hex_color};
-            }}
-        """)
-        
+        self._build()
+
+    def _build(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        
-        # Header (Name + Cube)
-        header_layout = QHBoxLayout()
-        v_header = QVBoxLayout()
-        name_lbl = QLabel(room_data.get('nama', 'Unknown'))
-        name_lbl.setStyleSheet("font-size: 16px; font-weight: bold; color: #1e293b;")
-        
-        status_lbl = QLabel(status + (" Prioritas" if status == "Konflik" else " Booked" if status=="Dosen" else ""))
-        status_lbl.setStyleSheet(f"color: {self.text_color}; background-color: {self.bg_light}; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;")
-        
-        v_header.addWidget(name_lbl)
-        v_header.addWidget(status_lbl)
-        v_header.addStretch()
-        
-        self.cube = CubeWidget(self.hex_color, should_animate=False)
-        self.cube.setFixedSize(60, 60)
-        
-        header_layout.addLayout(v_header)
-        header_layout.addWidget(self.cube)
-        layout.addLayout(header_layout)
-        
-        # Details
-        if status == "Konflik":
-            det_frame = QFrame()
-            det_frame.setStyleSheet("background-color: #f1f5f9; border-radius: 8px; padding: 8px;")
-            det_layout = QVBoxLayout(det_frame)
-            det_layout.setContentsMargins(8,8,8,8)
-            det_layout.addWidget(QLabel("Mahasiswa: Rizki", styleSheet="color: #475569; font-size: 11px;"))
-            det_layout.addWidget(QLabel("vs", styleSheet="color: #ef4444; font-size: 11px; font-weight: bold;"))
-            det_layout.addWidget(QLabel("Dosen: Siti", styleSheet="color: #475569; font-size: 11px;"))
-            layout.addWidget(det_frame)
-            
-            btn = QPushButton("Selesaikan Konflik")
-            btn.setStyleSheet("""
-                QPushButton { background-color: #f97316; color: white; border-radius: 6px; padding: 8px; font-weight: bold; border:none;}
-                QPushButton:hover { background-color: #ea580c; }
-            """)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(6)
+
+        # ── Status ring dot + status pill ──
+        top = QHBoxLayout()
+        dot = QLabel("●")
+        dot.setStyleSheet(f"color: {self.meta['color']}; font-size: 10px; background: transparent;")
+        pill = QLabel(self.meta["label"])
+        pill.setStyleSheet(
+            f"color: {self.meta['text']}; background: {self.meta['bg']};"
+            f"border-radius: 6px; padding: 2px 8px; font-size: 10px; font-weight: 700;"
+        )
+        top.addWidget(dot)
+        top.addWidget(pill)
+        top.addStretch()
+
+        # Cube (small, top-right)
+        self.cube = CubeWidget(self.meta["color"], should_animate=False)
+        self.cube.setFixedSize(36, 36)
+        top.addWidget(self.cube)
+        layout.addLayout(top)
+
+        # ── Room name ──
+        name = QLabel(self.room_data.get("nama", "Unknown"))
+        name.setObjectName("CardName")
+        name.setStyleSheet("font-size: 15px; font-weight: 800; background: transparent;")
+        layout.addWidget(name)
+
+        layout.addSpacing(2)
+
+        # ── Info rows ──
+        kap = self.room_data.get("kapasitas", 0)
+        fas = self.room_data.get("fasilitas", "-")
+
+        def info_row(icon, text):
+            h = QHBoxLayout()
+            lbl_icon = QLabel(icon)
+            lbl_icon.setStyleSheet("font-size: 11px; background: transparent; min-width:16px;")
+            lbl_text = QLabel(text)
+            lbl_text.setObjectName("CardMeta")
+            lbl_text.setStyleSheet("font-size: 11px; background: transparent;")
+            lbl_text.setWordWrap(True)
+            h.addWidget(lbl_icon)
+            h.addWidget(lbl_text)
+            h.addStretch()
+            return h
+
+        layout.addLayout(info_row("👥", f"{kap} kursi"))
+        layout.addLayout(info_row("🔧", fas[:28] + ("…" if len(fas) > 28 else "")))
+        layout.addStretch()
+
+        # ── Action button for Konflik ──
+        if self.status_key == "Konflik":
+            btn = QPushButton("⚡ Selesaikan Konflik")
+            btn.setStyleSheet(
+                "QPushButton{background:#f97316;color:white;border:none;border-radius:6px;"
+                "padding:5px 8px;font-weight:700;font-size:10px;}"
+                "QPushButton:hover{background:#ea580c;}"
+            )
             layout.addWidget(btn)
-        else:
-            layout.addStretch()
-            lbl_kap = QLabel(f"Kapasitas: {room_data.get('kapasitas', 0)} Kursi")
-            lbl_fas = QLabel(f"Fasilitas: {room_data.get('fasilitas', '-')}")
-            lbl_kap.setStyleSheet("color: #64748b; font-size: 11px;")
-            lbl_fas.setStyleSheet("color: #64748b; font-size: 11px;")
-            lbl_fas.setWordWrap(True)
-            layout.addWidget(lbl_kap)
-            layout.addWidget(lbl_fas)
-            layout.addStretch()
+
+    def update_theme(self, is_dark: bool):
+        self.is_dark = is_dark
+        p = DARK if is_dark else LIGHT
+        border_color = self.meta["color"] if self.status_key == "Konflik" else p["border"]
+        self.setStyleSheet(f"""
+            QFrame#RoomCard {{
+                background: {p['surface']};
+                border: 1.5px solid {border_color};
+                border-radius: 14px;
+            }}
+            QFrame#RoomCard:hover {{
+                border-color: {self.meta['color']};
+                background: {p['surface2']};
+            }}
+            QLabel#CardName  {{ color: {p['text_h']}; }}
+            QLabel#CardMeta  {{ color: {p['text_m']}; }}
+        """)
 
     def mousePressEvent(self, event):
         self.clicked.emit(self.room_data)
         super().mousePressEvent(event)
 
+
+# ──────────────────────────────────────────────
+#  SIDEBAR NAV BUTTON
+# ──────────────────────────────────────────────
+class NavButton(QPushButton):
+    def __init__(self, icon: str, label: str, active=False, parent=None):
+        super().__init__(f"  {icon}  {label}", parent)
+        self._active = active
+        self.setCheckable(False)
+        self.setCursor(QCursor(Qt.PointingHandCursor))
+        self.setFixedHeight(40)
+        self._apply()
+
+    def set_active(self, v: bool):
+        self._active = v; self._apply()
+
+    def _apply(self):
+        if self._active:
+            self.setStyleSheet("""
+                QPushButton {
+                    background: rgba(255,255,255,0.15);
+                    color: white; font-weight: 700;
+                    text-align: left; border: none;
+                    border-left: 3px solid #818cf8;
+                    border-radius: 0px;
+                    padding-left: 20px; font-size: 13px;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QPushButton {
+                    background: transparent;
+                    color: #94a3b8; font-weight: 500;
+                    text-align: left; border: none;
+                    border-left: 3px solid transparent;
+                    border-radius: 0px;
+                    padding-left: 20px; font-size: 13px;
+                }
+                QPushButton:hover {
+                    background: rgba(255,255,255,0.07);
+                    color: #e2e8f0;
+                }
+            """)
+
+
+# ──────────────────────────────────────────────
+#  KPI CARD  (wider strip design)
+# ──────────────────────────────────────────────
+class KpiCard(QFrame):
+    def __init__(self, title: str, value: str, icon: str, accent: str = "#4f46e5", parent=None):
+        super().__init__(parent)
+        self.accent = accent
+        self.setObjectName("KpiCard")
+        self.setFixedHeight(96)
+        self.setMinimumWidth(170)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 14, 18, 14)
+        layout.setSpacing(4)
+
+        top = QHBoxLayout()
+        self.lbl_title = QLabel(title)
+        self.lbl_title.setObjectName("KpiTitle")
+        icon_lbl = QLabel(icon)
+        icon_lbl.setStyleSheet(
+            f"font-size:18px; background:{accent}22; border-radius:8px;"
+            f"padding:4px 6px; color:{accent};"
+        )
+        top.addWidget(self.lbl_title)
+        top.addStretch()
+        top.addWidget(icon_lbl)
+        layout.addLayout(top)
+
+        self.lbl_value = QLabel(value)
+        self.lbl_value.setObjectName("KpiValue")
+        self.lbl_value.setStyleSheet(f"font-size:28px; font-weight:900; color:{accent}; background:transparent;")
+        layout.addWidget(self.lbl_value)
+
+        # accent bottom bar
+        bar = QFrame()
+        bar.setFixedHeight(3)
+        bar.setStyleSheet(f"background: qlineargradient(x1:0,y1:0,x2:1,y2:0, stop:0 {accent}, stop:1 transparent); border-radius:2px;")
+        layout.addWidget(bar)
+
+    def set_value(self, v: str):
+        self.lbl_value.setText(v)
+
+    def apply_palette(self, p: dict):
+        self.setStyleSheet(f"""
+            QFrame#KpiCard {{
+                background: {p['surface']};
+                border: 1px solid {p['border']};
+                border-radius: 14px;
+            }}
+            QLabel#KpiTitle {{
+                color: {p['text_m']};
+                font-size: 11px; font-weight: 600;
+                background: transparent;
+            }}
+        """)
+
+
+# ──────────────────────────────────────────────
+#  DETAIL PANEL
+# ──────────────────────────────────────────────
+class RoomDetailPanel(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("DetailPanel")
+        self.setFixedWidth(290)
+        self._build()
+
+    def _build(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(20, 20, 20, 20)
+        root.setSpacing(12)
+
+        self.lbl_header = QLabel("Detail Ruangan")
+        self.lbl_header.setObjectName("PanelHeader")
+        root.addWidget(self.lbl_header)
+
+        # Cube
+        self.cube_wrap = QHBoxLayout()
+        root.addLayout(self.cube_wrap)
+
+        # Name
+        self.lbl_name = QLabel("—")
+        self.lbl_name.setObjectName("PanelName")
+        self.lbl_name.setAlignment(Qt.AlignCenter)
+        root.addWidget(self.lbl_name)
+
+        # Status pill
+        self.lbl_status = QLabel("—")
+        self.lbl_status.setObjectName("PanelStatus")
+        self.lbl_status.setAlignment(Qt.AlignCenter)
+        self.lbl_status.setFixedHeight(28)
+        root.addWidget(self.lbl_status, alignment=Qt.AlignCenter)
+
+        root.addSpacing(8)
+
+        # Info section
+        self.info_frame = QFrame()
+        self.info_frame.setObjectName("InfoBox")
+        info_layout = QVBoxLayout(self.info_frame)
+        info_layout.setContentsMargins(14, 12, 14, 12)
+        info_layout.setSpacing(8)
+
+        self.lbl_info_label = QLabel("PENGHUNI SAAT INI")
+        self.lbl_info_label.setObjectName("InfoLabel")
+        info_layout.addWidget(self.lbl_info_label)
+
+        self.lbl_user = QLabel("—")
+        self.lbl_user.setObjectName("InfoUser")
+        self.lbl_user.setWordWrap(True)
+        info_layout.addWidget(self.lbl_user)
+
+        root.addWidget(self.info_frame)
+
+        # Schedule section
+        sched_frame = QFrame()
+        sched_frame.setObjectName("InfoBox")
+        sched_layout = QVBoxLayout(sched_frame)
+        sched_layout.setContentsMargins(14, 12, 14, 12)
+        sched_layout.setSpacing(6)
+
+        lbl_s = QLabel("JADWAL BERIKUTNYA")
+        lbl_s.setObjectName("InfoLabel")
+        sched_layout.addWidget(lbl_s)
+
+        self.lbl_sched = QLabel("14:00 – 16:00\nMateri: Kuliah Umum AI")
+        self.lbl_sched.setObjectName("InfoUser")
+        self.lbl_sched.setWordWrap(True)
+        sched_layout.addWidget(self.lbl_sched)
+        root.addWidget(sched_frame)
+
+        root.addStretch()
+
+        # Book button
+        self.btn_book = QPushButton("📅  Buat Reservasi")
+        self.btn_book.setCursor(QCursor(Qt.PointingHandCursor))
+        self.btn_book.setFixedHeight(40)
+        root.addWidget(self.btn_book)
+
+    def load(self, data: dict, is_dark: bool):
+        status = normalize_status(data.get("status", "Tersedia"))
+        meta   = STATUS_META[status]
+        p      = DARK if is_dark else LIGHT
+
+        self.lbl_name.setText(data.get("nama", "Unknown"))
+
+        self.lbl_status.setText(f"  {meta['label']}  ")
+        self.lbl_status.setStyleSheet(
+            f"color:{meta['text']}; background:{meta['bg']};"
+            f"border-radius:12px; font-weight:700; font-size:12px;"
+        )
+
+        self.lbl_user.setText(
+            "Ahmad Gunawan\nHIMA – Kegiatan Mahasiswa"
+            if status != "Tersedia" else "Ruangan kosong"
+        )
+
+        # Rebuild cube
+        for i in reversed(range(self.cube_wrap.count())):
+            w = self.cube_wrap.itemAt(i).widget()
+            if w: w.deleteLater()
+        cube = CubeWidget(meta["color"], should_animate=True)
+        cube.setFixedSize(120, 120)
+        self.cube_wrap.addWidget(cube, alignment=Qt.AlignCenter)
+
+        self.apply_palette(p)
+
+    def apply_palette(self, p: dict):
+        accent = p["accent"]
+        self.setStyleSheet(f"""
+            QFrame#DetailPanel {{
+                background: {p['surface']};
+                border: 1px solid {p['border']};
+                border-radius: 16px;
+            }}
+            QLabel#PanelHeader {{
+                color: {p['text_m']}; font-size: 11px;
+                font-weight: 700; letter-spacing: 1px;
+                background: transparent;
+                text-transform: uppercase;
+            }}
+            QLabel#PanelName {{
+                color: {p['text_h']}; font-size: 22px;
+                font-weight: 900; background: transparent;
+            }}
+            QFrame#InfoBox {{
+                background: {p['surface2']};
+                border: 1px solid {p['border']};
+                border-radius: 10px;
+            }}
+            QLabel#InfoLabel {{
+                color: {p['text_s']}; font-size: 10px;
+                font-weight: 700; letter-spacing: 1px;
+                background: transparent;
+            }}
+            QLabel#InfoUser {{
+                color: {p['text_b']}; font-size: 12px;
+                font-weight: 600; background: transparent;
+            }}
+            QPushButton {{
+                background: {accent}; color: white;
+                border: none; border-radius: 10px;
+                font-weight: 700; font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background: {p['accent_light']};
+                color: {accent};
+            }}
+        """)
+
+
+# ──────────────────────────────────────────────
+#  ADMIN DASHBOARD
+# ──────────────────────────────────────────────
 class AdminDashboard(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setObjectName("admin_dashboard_v2")
-        self.setStyleSheet("background-color: #f8fafc;")
-        
-        self.main_layout = QHBoxLayout(self)
-        self.main_layout.setContentsMargins(0, 0, 0, 0)
-        self.main_layout.setSpacing(0)
-        
-        self._build_sidebar()
-        self._build_content()
-        self.refresh_data()
-        
-    def _build_sidebar(self):
-        self.sidebar = QFrame()
-        self.sidebar.setFixedWidth(240)
-        self.sidebar.setStyleSheet("""
-            QFrame { background-color: #1e1b4b; color: white; }
-            QPushButton { 
-                text-align: left; padding: 12px 16px; border: none; 
-                background: transparent; color: #cbd5e1; font-weight: 500; font-size: 13px;
-                border-radius: 8px; margin: 4px 16px;
-            }
-            QPushButton:hover { background-color: rgba(255,255,255,0.1); color: white; }
-            QPushButton[active="true"] { background-color: #e0e7ff; color: #4338ca; font-weight: bold; }
-        """)
-        
-        layout = QVBoxLayout(self.sidebar)
-        layout.setContentsMargins(0, 24, 0, 24)
-        
-        # User Profile
-        prof_layout = QHBoxLayout()
-        prof_layout.setContentsMargins(16, 0, 16, 0)
-        ava = QLabel("👨‍🏫")
-        ava.setStyleSheet("font-size: 24px; background-color: rgba(255,255,255,0.1); border-radius: 16px; padding: 4px;")
-        v_prof = QVBoxLayout()
-        v_prof.addWidget(QLabel("Budi Santoso", styleSheet="color: white; font-weight: bold; font-size: 14px; background: transparent;"))
-        v_prof.addWidget(QLabel("Admin / Dosen", styleSheet="color: #818cf8; font-size: 11px; background: transparent;"))
-        prof_layout.addWidget(ava)
-        prof_layout.addLayout(v_prof)
-        prof_layout.addStretch()
-        layout.addLayout(prof_layout)
-        
-        layout.addSpacing(24)
-        
-        btn_new = QPushButton("+ Reservasi Baru")
-        btn_new.setStyleSheet("background-color: #4f46e5; color: white; font-weight: bold; text-align: center;")
-        layout.addWidget(btn_new)
-        
-        btn_ai = QPushButton("🤖 Tanya Asisten AI")
-        btn_ai.setStyleSheet("background-color: #0ea5e9; color: white; font-weight: bold; text-align: center;")
-        btn_ai.clicked.connect(self.show_chatbot)
-        layout.addWidget(btn_ai)
-        
-        layout.addSpacing(16)
-        
-        # Nav
-        self.btn_dash = QPushButton("Dashboard")
-        self.btn_dash.setProperty("active", "true")
-        layout.addWidget(self.btn_dash)
-        
-        layout.addWidget(QPushButton("Jadwal Ruangan"))
-        layout.addWidget(QPushButton("Peminjaman Saya"))
-        layout.addWidget(QPushButton("Riwayat"))
-        layout.addWidget(QPushButton("Pengaturan"))
-        
-        layout.addStretch()
-        
-        btn_out = QPushButton("Keluar")
-        btn_out.clicked.connect(self.handle_logout)
-        layout.addWidget(btn_out)
-        
-        self.main_layout.addWidget(self.sidebar)
-        
-    def _build_content(self):
-        self.content = QFrame()
-        layout = QVBoxLayout(self.content)
-        layout.setContentsMargins(32, 24, 32, 24)
-        layout.setSpacing(20)
-        
-        # Top Header
-        top_bar = QHBoxLayout()
-        title = QLabel("ReservasiKampus")
-        title.setStyleSheet("font-size: 18px; font-weight: bold; color: #334155;")
-        top_bar.addWidget(title)
-        top_bar.addStretch()
-        top_bar.addWidget(QLabel("🕒 13:45", styleSheet="color: #64748b; font-weight: bold;"))
-        top_bar.addWidget(QLabel("🔔", styleSheet="font-size: 16px;"))
-        top_bar.addWidget(QLabel("👤", styleSheet="font-size: 16px;"))
-        layout.addLayout(top_bar)
-        
-        # KPI Cards
-        kpi_layout = QHBoxLayout()
-        kpi_layout.setSpacing(16)
-        self.lbl_tot_ruangan = self._make_kpi(kpi_layout, "Total Ruangan", "0", "🏢")
-        self.lbl_res_aktif = self._make_kpi(kpi_layout, "Reservasi Aktif", "0", "📅")
-        self.lbl_konflik = self._make_kpi(kpi_layout, "Konflik Menunggu", "0", "⚠️", color="#f97316")
-        self.lbl_tot_pengguna = self._make_kpi(kpi_layout, "Total Pengguna", "0", "👥")
-        layout.addLayout(kpi_layout)
-        
-        # Warning Banner
-        self.warning_banner = QFrame()
-        self.warning_banner.setStyleSheet("background-color: #fff7ed; border-radius: 8px; padding: 12px;")
-        warn_layout = QHBoxLayout(self.warning_banner)
-        self.lbl_warn_text = QLabel("! 0 konflik prioritas membutuhkan perhatian Anda")
-        self.lbl_warn_text.setStyleSheet("color: #ea580c; font-weight: bold;")
-        btn_warn = QPushButton("Lihat Konflik")
-        btn_warn.setStyleSheet("background-color: #f97316; color: white; font-weight: bold; border-radius: 6px; padding: 6px 16px; border:none;")
-        warn_layout.addWidget(self.lbl_warn_text)
-        warn_layout.addStretch()
-        warn_layout.addWidget(btn_warn)
-        layout.addWidget(self.warning_banner)
-        self.warning_banner.hide()
-        
-        # Main area (Rooms List + Detail Panel)
-        main_area = QHBoxLayout()
-        
-        # Rooms List
-        list_container = QWidget()
-        list_layout = QVBoxLayout(list_container)
-        list_layout.setContentsMargins(0,0,0,0)
-        
-        list_header = QHBoxLayout()
-        lbl_status = QLabel("Status Ruangan Hari Ini")
-        lbl_status.setStyleSheet("font-size: 16px; font-weight: bold; color: #1e293b;")
-        search = QLineEdit()
-        search.setPlaceholderText("Cari ruangan...")
-        search.setFixedWidth(200)
-        search.setStyleSheet("background-color: white; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px; color:#1e293b;")
-        
-        list_header.addWidget(lbl_status)
-        list_header.addWidget(search)
-        list_header.addStretch()
-        
-        # Legend
-        list_header.addWidget(QLabel("🟢 Tersedia  🔴 Digunakan  🔵 Dosen  🟠 Konflik", styleSheet="font-size: 11px; color: #64748b;"))
-        list_layout.addLayout(list_header)
-        
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setFrameShape(QFrame.NoFrame)
-        self.scroll_area.setStyleSheet("background-color: transparent;")
-        
-        self.flow_container = QWidget()
-        self.flow_container.setStyleSheet("background-color: transparent;")
-        self.flow_layout = FlowLayout(self.flow_container)
-        self.scroll_area.setWidget(self.flow_container)
-        list_layout.addWidget(self.scroll_area)
-        
-        main_area.addWidget(list_container, stretch=3)
-        
-        # Detail Panel
-        self.detail_panel = QFrame()
-        self.detail_panel.setFixedWidth(300)
-        self.detail_panel.setStyleSheet("background-color: white; border: 1px solid #e2e8f0; border-radius: 12px;")
-        self.detail_layout = QVBoxLayout(self.detail_panel)
-        self.detail_layout.setContentsMargins(20, 20, 20, 20)
-        
-        self.lbl_det_title = QLabel("Detail Ruangan")
-        self.lbl_det_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #1e293b; background:transparent;")
-        self.detail_layout.addWidget(self.lbl_det_title)
-        
-        self.cube_container = QHBoxLayout()
-        self.detail_layout.addLayout(self.cube_container)
-        
-        self.lbl_det_name = QLabel("-")
-        self.lbl_det_name.setStyleSheet("font-size: 24px; font-weight: bold; color: #1e293b; background:transparent;")
-        self.lbl_det_name.setAlignment(Qt.AlignCenter)
-        self.detail_layout.addWidget(self.lbl_det_name)
-        
-        self.lbl_det_status = QLabel("-")
-        self.lbl_det_status.setStyleSheet("color: white; background-color: #94a3b8; padding: 6px 12px; border-radius: 12px; font-weight: bold;")
-        self.lbl_det_status.setAlignment(Qt.AlignCenter)
-        self.detail_layout.addWidget(self.lbl_det_status, alignment=Qt.AlignCenter)
-        
-        self.detail_layout.addSpacing(20)
-        
-        info_box = QFrame()
-        info_box.setStyleSheet("border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; background:transparent;")
-        v_info = QVBoxLayout(info_box)
-        v_info.addWidget(QLabel("Penghuni Saat Ini", styleSheet="color: #64748b; font-size: 11px; background:transparent;"))
-        self.lbl_det_user = QLabel("-")
-        self.lbl_det_user.setStyleSheet("font-weight: bold; color: #1e293b; font-size: 13px; background:transparent;")
-        v_info.addWidget(self.lbl_det_user)
-        self.detail_layout.addWidget(info_box)
-        
-        self.detail_layout.addStretch()
-        
-        main_area.addWidget(self.detail_panel)
-        
-        layout.addLayout(main_area)
-        self.main_layout.addWidget(self.content)
+        self.is_dark = False
+        self.setObjectName("AdminDashboard")
 
-    def _make_kpi(self, layout, title, val, icon, color="#1e293b"):
-        card = QFrame()
-        card.setStyleSheet("background-color: white; border: 1px solid #e2e8f0; border-radius: 12px;")
-        card.setFixedHeight(90)
-        v = QVBoxLayout(card)
-        
-        h = QHBoxLayout()
-        h.addWidget(QLabel(title, styleSheet="color: #64748b; font-size: 12px; font-weight: 500; background:transparent;"))
-        h.addStretch()
-        h.addWidget(QLabel(icon, styleSheet="background:transparent;"))
-        v.addLayout(h)
-        
-        lbl_val = QLabel(val)
-        lbl_val.setStyleSheet(f"font-size: 28px; font-weight: bold; color: {color}; background:transparent;")
-        v.addWidget(lbl_val)
-        
-        layout.addWidget(card)
-        return lbl_val
-        
+        root = QHBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        self._build_sidebar(root)
+        self._build_main(root)
+        self._build_detail_panel(root)
+
+        self.refresh_data()
+        self.apply_theme()
+
+    # ─── SIDEBAR ────────────────────────────────
+    def _build_sidebar(self, root):
+        self.sidebar = QFrame()
+        self.sidebar.setObjectName("Sidebar")
+        self.sidebar.setFixedWidth(220)
+
+        sb = QVBoxLayout(self.sidebar)
+        sb.setContentsMargins(0, 28, 0, 24)
+        sb.setSpacing(2)
+
+        # Logo / Brand
+        brand = QLabel("  🏛  ReservasiKampus")
+        brand.setStyleSheet(
+            "color: white; font-size: 13px; font-weight: 800;"
+            "letter-spacing: 0.5px; padding: 0 20px 20px 8px;"
+            "background: transparent;"
+        )
+        sb.addWidget(brand)
+
+        # Profile
+        prof = QFrame()
+        prof.setStyleSheet(
+            "background: rgba(255,255,255,0.08); border-radius: 12px;"
+            "margin: 0 12px; padding: 10px;"
+        )
+        pf = QHBoxLayout(prof)
+        pf.setContentsMargins(10, 8, 10, 8)
+        ava = QLabel("👨‍🏫")
+        ava.setStyleSheet(
+            "font-size: 20px; background: rgba(255,255,255,0.15);"
+            "border-radius: 14px; padding: 4px 6px;"
+        )
+        vp = QVBoxLayout()
+        vp.addWidget(QLabel("Budi Santoso", styleSheet="color:white;font-weight:700;font-size:12px;background:transparent;"))
+        vp.addWidget(QLabel("Admin / Dosen",  styleSheet="color:#818cf8;font-size:10px;background:transparent;"))
+        pf.addWidget(ava)
+        pf.addLayout(vp)
+        pf.addStretch()
+        sb.addWidget(prof)
+        sb.addSpacing(16)
+
+        # Quick actions
+        btn_new = QPushButton("＋  Reservasi Baru")
+        btn_new.setCursor(QCursor(Qt.PointingHandCursor))
+        btn_new.setFixedHeight(38)
+        btn_new.setStyleSheet(
+            "QPushButton{background:#4f46e5;color:white;border:none;border-radius:10px;"
+            "font-weight:700;font-size:12px;margin:0 12px;}"
+            "QPushButton:hover{background:#4338ca;}"
+        )
+        sb.addWidget(btn_new)
+        sb.addSpacing(4)
+
+        btn_ai = QPushButton("🤖  Tanya Asisten AI")
+        btn_ai.setCursor(QCursor(Qt.PointingHandCursor))
+        btn_ai.setFixedHeight(38)
+        btn_ai.setStyleSheet(
+            "QPushButton{background:#0284c7;color:white;border:none;border-radius:10px;"
+            "font-weight:700;font-size:12px;margin:0 12px;}"
+            "QPushButton:hover{background:#0369a1;}"
+        )
+        btn_ai.clicked.connect(self.show_chatbot)
+        sb.addWidget(btn_ai)
+        sb.addSpacing(20)
+
+        # Divider label
+        div = QLabel("  NAVIGASI")
+        div.setStyleSheet("color:#475569;font-size:9px;font-weight:700;letter-spacing:2px;background:transparent;padding-left:20px;")
+        sb.addWidget(div)
+        sb.addSpacing(4)
+
+        # Nav items
+        self.nav_buttons = []
+        nav_items = [
+            ("🏠", "Dashboard", True),
+            ("📅", "Jadwal Ruangan", False),
+            ("📋", "Peminjaman Saya", False),
+            ("🕒", "Riwayat", False),
+            ("⚙️", "Pengaturan", False),
+        ]
+        for icon, label, active in nav_items:
+            btn = NavButton(icon, label, active)
+            sb.addWidget(btn)
+            self.nav_buttons.append(btn)
+
+        sb.addStretch()
+
+        # Logout
+        btn_out = QPushButton("⎋  Keluar")
+        btn_out.setCursor(QCursor(Qt.PointingHandCursor))
+        btn_out.setFixedHeight(38)
+        btn_out.setStyleSheet(
+            "QPushButton{background:transparent;color:#ef4444;border:1px solid #ef444430;"
+            "border-radius:10px;font-weight:600;font-size:12px;margin:0 12px;}"
+            "QPushButton:hover{background:#ef444415;}"
+        )
+        btn_out.clicked.connect(self.handle_logout)
+        sb.addWidget(btn_out)
+
+        root.addWidget(self.sidebar)
+
+    # ─── MAIN CONTENT ───────────────────────────
+    def _build_main(self, root):
+        self.main_frame = QFrame()
+        self.main_frame.setObjectName("MainFrame")
+        ml = QVBoxLayout(self.main_frame)
+        ml.setContentsMargins(28, 20, 16, 20)
+        ml.setSpacing(16)
+
+        # ── Top Bar ──
+        top = QHBoxLayout()
+
+        self.lbl_page = QLabel("Dashboard")
+        self.lbl_page.setObjectName("PageTitle")
+        top.addWidget(self.lbl_page)
+        top.addStretch()
+
+        self.lbl_time = QLabel("🕒 --:--")
+        self.lbl_time.setObjectName("TimeLabel")
+        top.addWidget(self.lbl_time)
+
+        # Update clock
+        self._clock_timer = QTimer(self)
+        self._clock_timer.timeout.connect(self._tick_clock)
+        self._clock_timer.start(30_000)
+        self._tick_clock()
+
+        self.btn_theme = QPushButton()
+        self.btn_theme.setObjectName("ThemeBtn")
+        self.btn_theme.setFixedSize(90, 32)
+        self.btn_theme.setCursor(QCursor(Qt.PointingHandCursor))
+        self.btn_theme.clicked.connect(self.toggle_theme)
+        top.addWidget(self.btn_theme)
+
+        ml.addLayout(top)
+
+        # ── KPI Strip ──
+        kpi_row = QHBoxLayout()
+        kpi_row.setSpacing(12)
+
+        self.kpi_rooms   = KpiCard("Total Ruangan",      "0",  "🏢", "#4f46e5")
+        self.kpi_active  = KpiCard("Reservasi Aktif",    "0",  "📅", "#0ea5e9")
+        self.kpi_konflik = KpiCard("Konflik Menunggu",   "0",  "⚠️", "#f97316")
+        self.kpi_users   = KpiCard("Total Pengguna",     "0",  "👥", "#22c55e")
+
+        for kpi in (self.kpi_rooms, self.kpi_active, self.kpi_konflik, self.kpi_users):
+            kpi_row.addWidget(kpi)
+        ml.addLayout(kpi_row)
+
+        # ── Warning Banner ──
+        self.warn_banner = QFrame()
+        self.warn_banner.setObjectName("WarnBanner")
+        wb = QHBoxLayout(self.warn_banner)
+        wb.setContentsMargins(16, 10, 16, 10)
+        self.lbl_warn = QLabel()
+        self.lbl_warn.setObjectName("WarnText")
+        btn_fix = QPushButton("Lihat Konflik →")
+        btn_fix.setCursor(QCursor(Qt.PointingHandCursor))
+        btn_fix.setStyleSheet(
+            "QPushButton{background:#f97316;color:white;border:none;border-radius:8px;"
+            "padding:5px 14px;font-weight:700;font-size:11px;}"
+            "QPushButton:hover{background:#ea580c;}"
+        )
+        wb.addWidget(self.lbl_warn)
+        wb.addStretch()
+        wb.addWidget(btn_fix)
+        ml.addWidget(self.warn_banner)
+        self.warn_banner.hide()
+
+        # ── Rooms List Header ──
+        list_hdr = QHBoxLayout()
+        self.lbl_section = QLabel("Status Ruangan Hari Ini")
+        self.lbl_section.setObjectName("SectionTitle")
+        list_hdr.addWidget(self.lbl_section)
+        list_hdr.addStretch()
+
+        self.search = QLineEdit()
+        self.search.setPlaceholderText("🔍  Cari ruangan…")
+        self.search.setFixedWidth(200)
+        self.search.setFixedHeight(32)
+        self.search.setObjectName("SearchBox")
+        self.search.textChanged.connect(self._filter_cards)
+        list_hdr.addWidget(self.search)
+
+        # Legend
+        legend = QLabel("  ●  Tersedia    ●  Digunakan    ●  Dosen    ●  Konflik")
+        legend.setObjectName("Legend")
+        legend.setStyleSheet(
+            "font-size: 10px; color: transparent; background: transparent;"
+            "background-clip: text;"
+        )
+        # Simple colored legend
+        legend2 = QLabel()
+        legend2.setObjectName("Legend")
+        legend2.setText(
+            "<span style='color:#22c55e'>●</span> Tersedia &nbsp;"
+            "<span style='color:#ef4444'>●</span> Digunakan &nbsp;"
+            "<span style='color:#3b82f6'>●</span> Dosen &nbsp;"
+            "<span style='color:#f97316'>●</span> Konflik"
+        )
+        legend2.setTextFormat(Qt.RichText)
+        legend2.setStyleSheet("font-size:10px; background:transparent;")
+        list_hdr.addWidget(legend2)
+        ml.addLayout(list_hdr)
+
+        # ── Room Cards Scroll ──
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.NoFrame)
+        self.scroll.setStyleSheet("background:transparent;")
+
+        self.flow_container = QWidget()
+        self.flow_container.setStyleSheet("background:transparent;")
+        self.flow_layout = FlowLayout(self.flow_container, margin=0, hSpacing=12, vSpacing=12)
+        self.scroll.setWidget(self.flow_container)
+        ml.addWidget(self.scroll)
+
+        root.addWidget(self.main_frame, stretch=1)
+
+    # ─── DETAIL PANEL ───────────────────────────
+    def _build_detail_panel(self, root):
+        self.detail = RoomDetailPanel()
+        root.addWidget(self.detail)
+
+    # ─── HELPERS ────────────────────────────────
+    def _tick_clock(self):
+        from datetime import datetime
+        self.lbl_time.setText(f"🕒 {datetime.now().strftime('%H:%M')}")
+
+    def _filter_cards(self, text: str):
+        text = text.lower().strip()
+        for i in range(self.flow_layout.count()):
+            item = self.flow_layout.itemAt(i)
+            if item and item.widget():
+                w = item.widget()
+                nama = w.room_data.get("nama", "").lower()
+                w.setVisible(text == "" or text in nama)
+
+    # ─── THEME ──────────────────────────────────
+    def toggle_theme(self):
+        self.is_dark = not self.is_dark
+        self.apply_theme()
+
+    def apply_theme(self):
+        p = DARK if self.is_dark else LIGHT
+
+        # Root background
+        self.setStyleSheet(f"QWidget#AdminDashboard {{ background: {p['bg']}; }}")
+
+        # Sidebar
+        self.sidebar.setStyleSheet(f"""
+            QFrame#Sidebar {{
+                background: {p['sidebar_bg']};
+                border-right: 1px solid rgba(255,255,255,0.05);
+            }}
+        """)
+
+        # Main frame
+        self.main_frame.setStyleSheet(f"QFrame#MainFrame {{ background: {p['bg']}; }}")
+
+        # Top bar labels
+        self.lbl_page.setStyleSheet(
+            f"font-size:20px; font-weight:900; color:{p['text_h']}; background:transparent;"
+        )
+        self.lbl_time.setStyleSheet(
+            f"font-size:12px; color:{p['text_m']}; background:transparent; margin-right:8px;"
+        )
+
+        # Theme button
+        icon  = "☀️" if self.is_dark else "🌙"
+        label = " Terang" if self.is_dark else " Gelap"
+        self.btn_theme.setText(icon + label)
+        self.btn_theme.setStyleSheet(f"""
+            QPushButton#ThemeBtn {{
+                background: {p['surface']};
+                color: {p['text_b']};
+                border: 1px solid {p['border']};
+                border-radius: 10px;
+                font-weight: 600; font-size: 11px;
+            }}
+            QPushButton#ThemeBtn:hover {{
+                background: {p['surface2']};
+            }}
+        """)
+
+        # Section title
+        self.lbl_section.setStyleSheet(
+            f"font-size:15px; font-weight:800; color:{p['text_h']}; background:transparent;"
+        )
+
+        # Search
+        self.search.setStyleSheet(f"""
+            QLineEdit#SearchBox {{
+                background: {p['surface']};
+                border: 1px solid {p['border']};
+                border-radius: 8px;
+                padding: 0 10px;
+                color: {p['text_b']};
+                font-size: 12px;
+            }}
+        """)
+
+        # Warn banner
+        self.warn_banner.setStyleSheet(f"""
+            QFrame#WarnBanner {{
+                background: {p['warn_bg']};
+                border: 1px solid {p['warn_border']};
+                border-radius: 10px;
+            }}
+        """)
+        self.lbl_warn.setStyleSheet(f"color:{p['warn_text']};font-weight:700;font-size:12px;background:transparent;")
+
+        # KPI cards
+        for kpi in (self.kpi_rooms, self.kpi_active, self.kpi_konflik, self.kpi_users):
+            kpi.apply_palette(p)
+
+        # Room cards
+        for i in range(self.flow_layout.count()):
+            item = self.flow_layout.itemAt(i)
+            if item and item.widget() and hasattr(item.widget(), "update_theme"):
+                item.widget().update_theme(self.is_dark)
+
+        # Detail panel
+        self.detail.apply_palette(p)
+
+    # ─── DATA ───────────────────────────────────
     def refresh_data(self):
-        # Clear flow
+        # Clear existing cards
         while self.flow_layout.count():
             item = self.flow_layout.takeAt(0)
-            if item.widget():
+            if item and item.widget():
                 item.widget().deleteLater()
-                
+
         try:
             supabase = get_supabase_client()
-            rooms = supabase.table('ruangan').select() or []
-            users = supabase.table('pengguna').select() or []
-            
+            rooms = supabase.table("ruangan").select() or []
+            users = supabase.table("pengguna").select() or []
+
+            # Demo: force first room to Konflik
+            if len(rooms) >= 1:
+                rooms[0]["status"] = "Konflik"
+                rooms[0]["nama"]   = "LAB-AI-01"
+
             konflik_count = 0
-            
-            # Simulasi konflik
-            if len(rooms) > 0 and len(rooms) >= 3:
-                rooms[0]['status'] = "Konflik"
-                rooms[0]['nama'] = "LAB-AI-01"
-            
             for room in rooms:
                 card = RoomCard(room)
                 card.clicked.connect(self.show_room_detail)
                 self.flow_layout.addWidget(card)
-                
-                if room.get('status') == "Konflik":
+                if normalize_status(room.get("status", "")) == "Konflik":
                     konflik_count += 1
-                    
-            self.lbl_tot_ruangan.setText(str(len(rooms)))
-            self.lbl_tot_pengguna.setText(str(len(users)))
-            
-            # Simulasi active res
-            self.lbl_res_aktif.setText("87")
-            
+
+            self.kpi_rooms.set_value(str(len(rooms)))
+            self.kpi_users.set_value(str(len(users)))
+            self.kpi_active.set_value("87")
+            self.kpi_konflik.set_value(str(konflik_count))
+
             if konflik_count > 0:
-                self.warning_banner.show()
-                self.lbl_warn_text.setText(f"! {konflik_count} konflik prioritas membutuhkan perhatian Anda")
-                self.lbl_konflik.setText(str(konflik_count))
+                self.warn_banner.show()
+                self.lbl_warn.setText(f"⚡  {konflik_count} konflik prioritas membutuhkan perhatian Anda")
             else:
-                self.warning_banner.hide()
-                self.lbl_konflik.setText("0")
-                
+                self.warn_banner.hide()
+
             if rooms:
                 self.show_room_detail(rooms[0])
-                
+
         except Exception as e:
             print("Error loading dashboard data:", e)
 
-    def show_room_detail(self, data):
-        self.lbl_det_name.setText(data.get('nama', 'Unknown'))
-        
-        status = data.get('status', 'Tersedia')
-        if status in ("Digunakan", "Terpakai"): status = "Digunakan"
-        elif status in ("Dosen", "Terbooking"): status = "Dosen"
-        elif status == "Konflik": status = "Konflik"
-        else: status = "Tersedia"
-        
-        colors = {
-            "Tersedia": ("#4ade80", "#166534", "rgba(74, 222, 128, 0.2)"),
-            "Digunakan": ("#ef4444", "#991b1b", "rgba(239, 68, 68, 0.2)"),
-            "Dosen": ("#60a5fa", "#1e3a8a", "rgba(96, 165, 250, 0.2)"),
-            "Konflik": ("#f97316", "#9a3412", "rgba(249, 115, 22, 0.2)")
-        }
-        
-        hex_color, text_color, bg_color = colors.get(status, colors["Tersedia"])
-        
-        self.lbl_det_status.setText(status)
-        self.lbl_det_status.setStyleSheet(f"color: {text_color}; background-color: {bg_color}; padding: 6px 12px; border-radius: 12px; font-weight: bold;")
-        
-        # Dummy data untuk User saat ini (bisa dimapping kalau ada)
-        self.lbl_det_user.setText("Ahmad Gunawan\nKegiatan Mahasiswa (HIMA)" if status != "Tersedia" else "-")
-        
-        # Update cube
-        for i in reversed(range(self.cube_container.count())): 
-            self.cube_container.itemAt(i).widget().deleteLater()
-        
-        big_cube = CubeWidget(hex_color, should_animate=True)
-        big_cube.setFixedSize(140, 140)
-        self.cube_container.addWidget(big_cube, alignment=Qt.AlignCenter)
-        
+    # ─── SIGNALS ────────────────────────────────
+    def show_room_detail(self, data: dict):
+        self.detail.load(data, self.is_dark)
+
     def show_chatbot(self):
-        if not hasattr(self, 'chatbot_dialog') or self.chatbot_dialog is None:
-            self.chatbot_dialog = ChatbotDialog(self)
-        self.chatbot_dialog.show()
-        self.chatbot_dialog.raise_()
-        self.chatbot_dialog.activateWindow()
-        
+        if not hasattr(self, "_chatbot") or self._chatbot is None:
+            self._chatbot = ChatbotDialog(self)
+        self._chatbot.show()
+        self._chatbot.raise_()
+        self._chatbot.activateWindow()
+
     def handle_logout(self):
-        parent_widget = self.parent()
-        if parent_widget and hasattr(parent_widget, 'switch_to_public'):
-            parent_widget.switch_to_public()
+        p = self.parent()
+        if p and hasattr(p, "switch_to_public"):
+            p.switch_to_public()
