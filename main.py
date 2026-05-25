@@ -1,5 +1,7 @@
 import sys
 from PySide6.QtWidgets import QApplication, QStackedWidget
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QScreen
 from ui.index import StatusRuanganView
 from ui.loginPage import LoginPage
 from ui.admin.dashboard import AdminDashboard
@@ -9,8 +11,22 @@ class MainWindow(QStackedWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ReservasiKampus - Sistem Reservasi Ruangan")
-        self.setMinimumSize(800, 500)
-        self.resize(1024, 768)
+        
+        # Hitung ukuran 16:9 berdasarkan layar pengguna
+        screen = QApplication.primaryScreen()
+        screen_geo = screen.availableGeometry()
+        
+        # Ambil lebar penuh layar, lalu hitung tinggi sesuai rasio 16:9
+        max_w = screen_geo.width()
+        max_h = int(max_w * 9 / 16)
+        
+        # Jika tinggi hasil hitung melebihi layar, sesuaikan dari tinggi layar
+        if max_h > screen_geo.height():
+            max_h = screen_geo.height()
+            max_w = int(max_h * 16 / 9)
+        
+        self.setMinimumSize(1024, 576)  # Minimum 16:9
+        self.resize(max_w, max_h)
         
         # Inisialisasi views dengan meneruskan self sebagai parent/router
         self.public_view = StatusRuanganView(self)
@@ -29,35 +45,31 @@ class MainWindow(QStackedWidget):
 
     def switch_to_public(self):
         """Berpindah ke halaman utama status ruangan (Landscape)."""
-        self.setMinimumSize(800, 500)
-        self.resize(1024, 768)
         self.setCurrentWidget(self.public_view)
         self.public_view.refresh_data()
 
     def switch_to_login(self):
         """Berpindah ke halaman login (Landscape)."""
-        self.setMinimumSize(800, 500)
-        self.resize(1024, 768)
         self.setCurrentWidget(self.login_page)
 
-    def switch_to_admin(self):
+    def switch_to_admin(self, user=None):
         """Berpindah ke halaman admin dashboard (Landscape)."""
-        self.setMinimumSize(800, 500)
-        self.resize(1024, 768)
+        if user and hasattr(self.admin_dashboard, 'set_user_profile'):
+            self.admin_dashboard.set_user_profile(user)
         self.setCurrentWidget(self.admin_dashboard)
         self.admin_dashboard.refresh_data()
 
-    def switch_to_mahasiswa(self):
+    def switch_to_mahasiswa(self, user=None):
         """Berpindah ke halaman mahasiswa (Landscape)."""
-        self.setMinimumSize(800, 500)
-        self.resize(1024, 768)
+        if user and hasattr(self.mahasiswa_page, 'set_user_profile'):
+            self.mahasiswa_page.set_user_profile(user)
         self.setCurrentWidget(self.mahasiswa_page)
         self.mahasiswa_page.refresh_data()
 
 def main():
     app = QApplication(sys.argv)
     window = MainWindow()
-    window.show()
+    window.showMaximized()  # Langsung fullscreen / maximized
     sys.exit(app.exec())
 
 if __name__ == "__main__":

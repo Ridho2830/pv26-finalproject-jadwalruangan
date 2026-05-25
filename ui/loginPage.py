@@ -273,11 +273,11 @@ class LoginPage(QWidget):
                 if parent_widget:
                     if role == 'Admin':
                         if hasattr(parent_widget, 'switch_to_admin'):
-                            parent_widget.switch_to_admin()
+                            parent_widget.switch_to_admin(user)
                     else:
                         # Mahasiswa dan Dosen
                         if hasattr(parent_widget, 'switch_to_mahasiswa'):
-                            parent_widget.switch_to_mahasiswa()
+                            parent_widget.switch_to_mahasiswa(user)
             else:
                 self.show_error("Username atau password salah!")
         except Exception as e:

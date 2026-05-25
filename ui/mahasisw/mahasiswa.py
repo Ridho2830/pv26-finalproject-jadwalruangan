@@ -60,8 +60,9 @@ class MahasiswaPage(QWidget):
         logo = QLabel("ReservasiKampus")
         logo.setObjectName("sidebar_logo")
         
-        user_name = QLabel("Satria")
-        sidebar_layout.addWidget(user_name)
+        self.lbl_profile_name = QLabel("Pengguna")
+        self.lbl_profile_name.setStyleSheet("color: white; font-size: 15px; font-weight: bold;")
+        sidebar_layout.addWidget(self.lbl_profile_name)
         dashboard_btn = QPushButton("Dashboard")
         booking_btn = QPushButton("Jadwal Ruangan")
         history_btn = QPushButton("Peminjaman Saya")
@@ -418,6 +419,10 @@ class MahasiswaPage(QWidget):
 
     def toggle_theme(self):
         theme_manager.toggle_theme()
+
+    def set_user_profile(self, user: dict):
+        if user:
+            self.lbl_profile_name.setText(user.get("nama", "Pengguna"))
 
     def load_styles(self):
         self.setStyleSheet(

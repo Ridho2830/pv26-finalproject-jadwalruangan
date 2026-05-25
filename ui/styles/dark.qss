@@ -1,9 +1,9 @@
-/* ================================================
-   ReservasiKampus — Dark Industrial Glass
+﻿/* ================================================
+   ReservasiKampus  Dark Industrial Glass
    Palet: Deep Black + Teal Elektrik
    ================================================ */
 
-/* ── Global ──────────────────────────────────────── */
+/*  Global  */
 QWidget {
     font-family: 'DM Sans', 'Segoe UI', 'Helvetica Neue', sans-serif;
     background-color: #0a0a0f;
@@ -31,7 +31,7 @@ QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
     background: none;
 }
 
-/* ── Admin Dashboard Dynamic Typography ──────────────── */
+/*  Admin Dashboard Dynamic Typography  */
 .dashboard_section_title {
     font-size: 12px;
     font-weight: 700;
@@ -93,7 +93,7 @@ QScrollBar::handle:horizontal:hover {
 QScrollBar::add-line:horizontal,
 QScrollBar::sub-line:horizontal { width: 0px; }
 
-/* ── Header ─────────────────────────────────────── */
+/*  Header  */
 #header {
     background-color: #0f0f18;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -134,7 +134,7 @@ QScrollBar::sub-line:horizontal { width: 0px; }
     color: #8888a8;
 }
 
-/* ── Login Button (header) ─────────────────────── */
+/*  Login Button (header)  */
 #login_btn {
     border: 1px solid rgba(0, 229, 204, 0.25);
     color: #00e5cc;
@@ -155,7 +155,7 @@ QScrollBar::sub-line:horizontal { width: 0px; }
     background-color: rgba(0, 229, 204, 0.22);
 }
 
-/* ── Theme Toggle ────────────────────────────────── */
+/*  Theme Toggle  */
 #theme_toggle {
     background-color: #1a1a2e;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -172,7 +172,7 @@ QScrollBar::sub-line:horizontal { width: 0px; }
     border-color: rgba(0, 229, 204, 0.3);
 }
 
-/* ── Filter Section ──────────────────────────────── */
+/*  Filter Section  */
 #filter_section {
     background-color: #0a0a0f;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -205,7 +205,7 @@ QScrollBar::sub-line:horizontal { width: 0px; }
     background-color: transparent;
 }
 
-/* ── Inputs & Comboboxes ─────────────────────────── */
+/*  Inputs & Comboboxes  */
 QLineEdit,
 QComboBox {
     background-color: #1a1a2e;
@@ -246,7 +246,7 @@ QComboBox QAbstractItemView {
     outline: none;
 }
 
-/* ── Main Canvas ─────────────────────────────────── */
+/*  Main Canvas  */
 #main_canvas {
     background-color: #0a0a0f;
     border: none;
@@ -256,7 +256,7 @@ QComboBox QAbstractItemView {
     background-color: #0a0a0f;
 }
 
-/* ── Section Label ───────────────────────────────── */
+/*  Section Label  */
 #section_label {
     font-size: 10px;
     font-weight: 700;
@@ -267,7 +267,7 @@ QComboBox QAbstractItemView {
     text-transform: uppercase;
 }
 
-/* ── Room Cards ──────────────────────────────────── */
+/* Room Card */
 .room_card {
     background-color: #141420;
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -317,7 +317,7 @@ QComboBox QAbstractItemView {
     padding-top: 4px;
 }
 
-/* ── Status Badges ───────────────────────────────── */
+/*  Status Badges  */
 .badge {
     border-radius: 5px;
     padding: 3px 9px;
@@ -351,7 +351,7 @@ QComboBox QAbstractItemView {
     border: 1px solid rgba(107, 114, 128, 0.20);
 }
 
-/* ── Footer ──────────────────────────────────────── */
+/*  Footer  */
 #footer {
     background-color: #0f0f18;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -371,7 +371,7 @@ QComboBox QAbstractItemView {
     background-color: transparent;
 }
 
-/* ── Notification Banner ─────────────────────────── */
+/*  Notification Banner  */
 #notif_banner {
     background-color: rgba(251, 191, 36, 0.06);
     border-top: 1px solid rgba(251, 191, 36, 0.20);
@@ -403,7 +403,7 @@ QComboBox QAbstractItemView {
     background-color: rgba(251, 191, 36, 0.15);
 }
 
-/* ── Sidebar ──────────────────────────────────────── */
+/*  Sidebar  */
 #sidebar {
     background-color: #0f0f18;
     border-right: 1px solid rgba(255, 255, 255, 0.05);
@@ -469,7 +469,7 @@ QComboBox QAbstractItemView {
 }
 
 
-/* ── QTableWidget & Tables ────────────────────────── */
+/*  QTableWidget & Tables  */
 QTableWidget {
     background-color: #0f0f18;
     border: 1px solid rgba(255, 255, 255, 0.06);
@@ -511,7 +511,7 @@ QTableWidget QTableCornerButton::section {
     border: none;
 }
 
-/* ── Table Action Buttons ────────────────────────── */
+/*  Table Action Buttons  */
 #edit_action_btn {
     background-color: rgba(0, 229, 204, 0.08);
     color: #00e5cc;
@@ -542,7 +542,7 @@ QTableWidget QTableCornerButton::section {
     border-color: #ff4d6d;
 }
 
-/* ── Login Page ─────────────────────────────────── */
+/*  Login Page  */
 #login_container {
     background-color: transparent;
 }
@@ -610,7 +610,7 @@ QTableWidget QTableCornerButton::section {
     background-color: rgba(255, 255, 255, 0.04);
 }
 
-/* ── Form Dialog Controls ─────────────────────────── */
+/*  Form Dialog Controls  */
 #cancel_btn {
     background-color: transparent;
     color: #8888a8;
@@ -624,7 +624,7 @@ QTableWidget QTableCornerButton::section {
     color: #e8e8f0;
 }
 
-/* ── Facility Chip ───────────────────────────────── */
+/*  Facility Chip  */
 .facility_chip {
     background-color: rgba(255, 255, 255, 0.05);
     color: #8888a8;
@@ -635,7 +635,7 @@ QTableWidget QTableCornerButton::section {
     font-weight: 600;
 }
 
-/* ── QMessageBox ─────────────────────────────────── */
+/*  QMessageBox  */
 QMessageBox {
     background-color: #141420;
     color: #e8e8f0;
@@ -656,14 +656,14 @@ QMessageBox QPushButton:hover {
     color: #00e5cc;
 }
 
-/* ── QDialog ─────────────────────────────────────── */
+/*  QDialog  */
 QDialog {
     background-color: #141420;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 16px;
 }
 
-/* ── Progress Bar (Utilitas Gedung) ──────────────── */
+/*  Progress Bar (Utilitas Gedung)  */
 QProgressBar {
     background-color: rgba(255, 255, 255, 0.05);
     border: none;
@@ -675,3 +675,37 @@ QProgressBar::chunk {
     background-color: #00e5cc;
     border-radius: 4px;
 }
+
+/* Admin Dashboard Specific */
+#AdminDashboard { background-color: #0a0f1e; }
+#Sidebar { background-color: #050a14; border-right: 1px solid rgba(255,255,255,0.05); }
+#MainFrame { background-color: #0a0f1e; }
+QLabel#PageTitle { font-size:20px; font-weight:900; color:#f1f5f9; background-color: transparent; }
+QLabel#TimeLabel { font-size:12px; color:#94a3b8; background-color: transparent; }
+QPushButton#ThemeBtn { background-color: #111827; color: #cbd5e1; border: 1px solid #1e293b; border-radius: 10px; font-weight: 600; font-size: 11px; padding: 5px; }
+QPushButton#ThemeBtn:hover { background-color: #1e293b; }
+#WarnBanner { background-color: #1c0f00; border: 1px solid #431407; border-radius: 10px; }
+QLabel#WarnText { color: #fb923c; font-weight: 700; font-size: 12px; background-color: transparent; }
+QLabel#SectionTitle { font-size: 15px; font-weight: 800; color: #f1f5f9; background-color: transparent; }
+QLineEdit#SearchBox { background-color: #111827; border: 1px solid #1e293b; border-radius: 8px; padding: 5px 10px; color: #cbd5e1; font-size: 12px; }
+#KpiCard { background-color: #111827; border: 1px solid #1e293b; border-radius: 12px; }
+QLabel#KpiTitle { font-size: 11px; font-weight: 700; color: #475569; background-color: transparent; }
+QLabel#KpiValue { font-size: 28px; font-weight: 900; color: #818cf8; background-color: transparent; }
+#DetailPanel { background-color: #111827; border-left: 1px solid #1e293b; }
+QLabel#PanelHeader { font-size: 14px; font-weight: 800; color: #f1f5f9; background-color: transparent; }
+QLabel#PanelName { font-size: 18px; font-weight: 800; color: #f1f5f9; background-color: transparent; }
+QLabel#PanelStatus { background-color: #1e293b; color: #94a3b8; border: 1px solid #1e293b; border-radius: 8px; padding: 6px; font-size: 12px; font-weight: 600; }
+#InfoBox { background-color: transparent; border: none; }
+QLabel#InfoLabel { color: #475569; font-size: 11px; font-weight: 700; background-color: transparent; }
+QLabel#InfoUser { color: #94a3b8; font-size: 12px; font-weight: 600; background-color: transparent; }
+
+/* Nav Buttons */
+QPushButton#NavBtn { background-color: transparent; color: #94a3b8; border: none; font-size: 13px; font-weight: 600; text-align: left; padding: 8px 16px; border-radius: 8px; margin: 2px 12px; }
+QPushButton#NavBtn:hover { background-color: rgba(255,255,255,0.05); color: #ffffff; }
+QPushButton#NavBtn:checked { background-color: rgba(255,255,255,0.1); color: #ffffff; font-weight: 800; }
+
+/* Room Card */
+#RoomCard { background-color: #111827; border: 1px solid #1e293b; border-radius: 12px; }
+#RoomCard:hover { border: 1px solid #818cf8; background-color: #1e293b; }
+QLabel.roomcard_title { color: #f1f5f9; font-size: 15px; font-weight: 800; background-color: transparent; }
+QLabel#CardMeta { color: #94a3b8; font-size: 11px; background-color: transparent; }
