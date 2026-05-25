@@ -16,15 +16,14 @@ class CubeWidget(QWidget):
         if should_animate:
             self.start_floating_animation()
 
-    def get_bounce_y(self) -> float:
+    @Property(float)
+    def bounce_y(self) -> float:
         return self._bounce_y
 
-    def set_bounce_y(self, val: float):
+    @bounce_y.setter
+    def bounce_y(self, val: float):
         self._bounce_y = val
         self.update()
-
-    # Definisikan property untuk Qt Animation
-    bounce_y = Property(float, get_bounce_y, set_bounce_y)
 
     def start_floating_animation(self):
         """Memulai animasi melayang naik-turun secara halus."""

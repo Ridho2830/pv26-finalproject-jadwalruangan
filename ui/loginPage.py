@@ -1,8 +1,10 @@
+import os
 import bcrypt
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSize
+from PySide6.QtGui import QPixmap, QIcon, QFont
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                                QLineEdit, QPushButton, QFrame, QScrollArea, 
-                               QGridLayout)
+                               QGridLayout, QSpacerItem, QSizePolicy, QCheckBox)
 from utils.mode import theme_manager
 from api.supabase import get_supabase_client
 
@@ -12,144 +14,229 @@ class LoginPage(QWidget):
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setObjectName("login_page")
         
-        # Outer layout containing the scroll area
-        self.outer_layout = QVBoxLayout(self)
+        # Outer layout
+        self.outer_layout = QHBoxLayout(self)
         self.outer_layout.setContentsMargins(0, 0, 0, 0)
         self.outer_layout.setSpacing(0)
         
-        # Scroll Area for responsiveness on small screens/windows
-        self.scroll_area = QScrollArea(self)
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setFrameShape(QFrame.NoFrame)
-        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self.scroll_area.setStyleSheet("background: transparent; border: none;")
-        self.scroll_area.viewport().setStyleSheet("background: transparent; border: none;")
+        self._build_left_panel()
+        self._build_right_panel()
         
-        # Scroll Content Widget
-        self.scroll_content = QWidget()
-        self.scroll_content.setObjectName("login_scroll_content")
-        self.scroll_content.setStyleSheet("background: transparent;")
-        
-        # Grid layout to center the login container
-        self.grid_layout = QGridLayout(self.scroll_content)
-        self.grid_layout.setContentsMargins(24, 24, 24, 24)
-        
-        # Centered login container widget
-        self.login_container = QWidget()
-        self.login_container.setObjectName("login_container")
-        self.login_container.setStyleSheet("background: transparent;")
-        self.login_container.setMinimumWidth(280)
-        self.login_container.setMaximumWidth(380)
-        
-        # Inner layout for the login widgets
-        self.main_layout = QVBoxLayout(self.login_container)
-        self.main_layout.setContentsMargins(0, 0, 0, 0)
-        self.main_layout.setSpacing(20)
-        
-        self._build_ui()
-        
-        # Add login container to grid layout (aligned to center)
-        self.grid_layout.addWidget(self.login_container, 0, 0, Qt.AlignCenter)
-        
-        # Set scroll content and add scroll area to outer layout
-        self.scroll_area.setWidget(self.scroll_content)
-        self.outer_layout.addWidget(self.scroll_area)
-        
-        # Load style
         self.apply_theme()
         theme_manager.theme_changed.connect(self.apply_theme)
+        
+        # Base styles for this page (split screen colors)
+        self.setStyleSheet("""
+            QWidget#login_page { background-color: #ffffff; }
+            QFrame#left_panel { background-color: #1a1625; }
+            QLabel#left_title { color: white; font-size: 24px; font-weight: bold; margin-top: 20px;}
+            QLabel#left_desc { color: #a09eb0; font-size: 14px; margin-top: 10px; }
+            QLabel#right_title { color: #1a1625; font-size: 28px; font-weight: bold; }
+            QLabel#right_subtitle { color: #6b7280; font-size: 14px; margin-bottom: 20px; }
+            QLineEdit { 
+                padding: 10px; 
+                border: 1px solid #e5e7eb; 
+                border-radius: 8px; 
+                background-color: #f9fafb;
+                color: #111827;
+            }
+            QLineEdit:focus { border: 1px solid #6366f1; background-color: #ffffff; }
+            QPushButton#login_btn { 
+                background-color: #4338ca; 
+                color: white; 
+                border-radius: 8px; 
+                font-weight: bold;
+                padding: 10px;
+            }
+            QPushButton#login_btn:hover { background-color: #3730a3; }
+            QPushButton#public_btn { 
+                background-color: white; 
+                color: #4b5563; 
+                border: 1px solid #d1d5db; 
+                border-radius: 8px; 
+                padding: 8px;
+            }
+            QPushButton#public_btn:hover { background-color: #f3f4f6; }
+        """)
 
-    def _build_ui(self):
-        # 1. Logo & Judul Aplikasi
-        logo_label = QLabel("🏢")
-        logo_label.setAlignment(Qt.AlignCenter)
-        logo_label.setStyleSheet("font-size: 56px; background-color: transparent;")
-        self.main_layout.addWidget(logo_label)
+    def _build_left_panel(self):
+        self.left_panel = QFrame()
+        self.left_panel.setObjectName("left_panel")
+        self.left_panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         
-        app_title = QLabel("ReservasiKampus")
-        app_title.setObjectName("login_app_title")
-        app_title.setAlignment(Qt.AlignCenter)
-        app_title.setStyleSheet("background-color: transparent;")
-        self.main_layout.addWidget(app_title)
+        layout = QVBoxLayout(self.left_panel)
+        layout.setContentsMargins(60, 60, 60, 60)
         
-        page_title = QLabel("Login Administrator")
-        page_title.setObjectName("page_title_lbl")
-        page_title.setAlignment(Qt.AlignCenter)
-        page_title.setStyleSheet("background-color: transparent; margin-bottom: 10px;")
-        self.main_layout.addWidget(page_title)
+        # Logo and brand
+        brand_layout = QHBoxLayout()
+        logo = QLabel("🏢")
+        logo.setStyleSheet("font-size: 24px; background: transparent;")
+        brand_text = QLabel("ReservasiKampus")
+        brand_text.setStyleSheet("color: white; font-size: 20px; font-weight: bold; background: transparent;")
+        brand_layout.addWidget(logo)
+        brand_layout.addWidget(brand_text)
+        brand_layout.addStretch()
         
-        # 2. Form Container
-        self.form_card = QFrame()
-        self.form_card.setObjectName("form_card")
-        self.form_card.setProperty("class", "room_card")
-        self.form_card.setStyleSheet("QFrame#form_card { padding: 24px; }")
+        layout.addLayout(brand_layout)
+        layout.addStretch()
         
-        form_layout = QVBoxLayout(self.form_card)
-        form_layout.setSpacing(16)
+        # Illustration
+        illustration = QLabel()
+        img_path = os.path.join(os.path.dirname(__file__), '..', 'assets', 'login_illustration.png')
+        if os.path.exists(img_path):
+            pixmap = QPixmap(img_path).scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            illustration.setPixmap(pixmap)
+        else:
+            illustration.setText("🖼️ [Ilustrasi Ruangan]")
+            illustration.setStyleSheet("color: #4b5563; font-size: 24px;")
+            
+        illustration.setAlignment(Qt.AlignCenter)
+        layout.addWidget(illustration)
         
-        # Field Username
-        username_label = QLabel("Username")
-        username_label.setObjectName("username_lbl")
-        username_label.setStyleSheet("background-color: transparent;")
+        layout.addStretch()
+        
+        # Text
+        title = QLabel("Sistem Reservasi Ruangan Kuliah Digital")
+        title.setObjectName("left_title")
+        title.setAlignment(Qt.AlignCenter)
+        title.setWordWrap(True)
+        
+        desc = QLabel("Kelola jadwal, pantau ketersediaan ruangan, dan optimalkan penggunaan fasilitas akademik dalam satu platform terintegrasi.")
+        desc.setObjectName("left_desc")
+        desc.setAlignment(Qt.AlignCenter)
+        desc.setWordWrap(True)
+        
+        layout.addWidget(title)
+        layout.addWidget(desc)
+        
+        footer = QLabel("© 2024 Sistem Akademik Terpadu")
+        footer.setStyleSheet("color: #6b7280; font-size: 12px; margin-top: 40px;")
+        footer.setAlignment(Qt.AlignLeft)
+        layout.addWidget(footer)
+        
+        self.outer_layout.addWidget(self.left_panel, stretch=1)
+
+    def _build_right_panel(self):
+        self.right_panel = QFrame()
+        self.right_panel.setObjectName("right_panel")
+        self.right_panel.setStyleSheet("background-color: white;")
+        self.right_panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        
+        # Use a scroll area for responsiveness on smaller screens
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setWidget(self.right_panel)
+        
+        layout = QVBoxLayout(self.right_panel)
+        layout.setAlignment(Qt.AlignCenter)
+        
+        # Container for form to keep it centered and max-width
+        form_container = QWidget()
+        form_container.setMaximumWidth(400)
+        form_layout = QVBoxLayout(form_container)
+        form_layout.setSpacing(15)
+        
+        # Welcome text
+        title = QLabel("Selamat Datang 👋")
+        title.setObjectName("right_title")
+        
+        subtitle = QLabel("Masuk ke akun Anda untuk melanjutkan")
+        subtitle.setObjectName("right_subtitle")
+        
+        form_layout.addWidget(title)
+        form_layout.addWidget(subtitle)
+        
+        # Form fields
+        user_lbl = QLabel("Username / NIP / NIM")
+        user_lbl.setStyleSheet("color: #374151; font-size: 13px; font-weight: 500;")
         self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Masukkan username...")
-        self.username_input.setFixedHeight(40)
+        self.username_input.setPlaceholderText("Masukkan username Anda")
+        self.username_input.setFixedHeight(45)
         
-        # Field Password
-        password_label = QLabel("Password")
-        password_label.setObjectName("password_lbl")
-        password_label.setStyleSheet("background-color: transparent;")
+        pass_lbl = QLabel("Password")
+        pass_lbl.setStyleSheet("color: #374151; font-size: 13px; font-weight: 500;")
         self.password_input = QLineEdit()
-        self.password_input.setPlaceholderText("Masukkan password...")
+        self.password_input.setPlaceholderText("••••••••")
         self.password_input.setEchoMode(QLineEdit.Password)
-        self.password_input.setFixedHeight(40)
+        self.password_input.setFixedHeight(45)
         
-        # Tombol Enter untuk login
         self.username_input.returnPressed.connect(self.handle_login)
         self.password_input.returnPressed.connect(self.handle_login)
         
-        form_layout.addWidget(username_label)
+        # Checkbox & Forgot Password
+        options_layout = QHBoxLayout()
+        remember_cb = QCheckBox("Ingat sesi saya")
+        remember_cb.setStyleSheet("color: #4b5563; font-size: 13px;")
+        
+        forgot_btn = QPushButton("Lupa Password?")
+        forgot_btn.setCursor(Qt.PointingHandCursor)
+        forgot_btn.setStyleSheet("color: #4f46e5; font-size: 13px; background: transparent; border: none; text-align: right;")
+        
+        options_layout.addWidget(remember_cb)
+        options_layout.addStretch()
+        options_layout.addWidget(forgot_btn)
+        
+        form_layout.addWidget(user_lbl)
         form_layout.addWidget(self.username_input)
-        form_layout.addWidget(password_label)
+        form_layout.addWidget(pass_lbl)
         form_layout.addWidget(self.password_input)
+        form_layout.addLayout(options_layout)
         
-        self.main_layout.addWidget(self.form_card)
-        
-        # 3. Error Label (hidden by default)
+        # Error Label
         self.error_label = QLabel("")
         self.error_label.setAlignment(Qt.AlignCenter)
         self.error_label.setWordWrap(True)
-        self.error_label.setStyleSheet("color: #EF4444; font-size: 12px; font-weight: bold; background-color: transparent;")
+        self.error_label.setStyleSheet("color: #EF4444; font-size: 12px; font-weight: bold; margin-top: 5px;")
         self.error_label.hide()
-        self.main_layout.addWidget(self.error_label)
+        form_layout.addWidget(self.error_label)
         
-        # 4. Buttons Layout
-        btn_layout = QVBoxLayout()
-        btn_layout.setSpacing(12)
-        
-        self.submit_btn = QPushButton("Masuk Ke Sistem")
+        # Submit Button
+        self.submit_btn = QPushButton("Masuk")
         self.submit_btn.setObjectName("login_btn")
         self.submit_btn.setCursor(Qt.PointingHandCursor)
-        self.submit_btn.setFixedHeight(42)
+        self.submit_btn.setFixedHeight(45)
         self.submit_btn.clicked.connect(self.handle_login)
+        form_layout.addWidget(self.submit_btn)
         
-        self.back_btn = QPushButton("Kembali ke Beranda")
-        self.back_btn.setObjectName("back_btn")
+        # Divider
+        divider_layout = QHBoxLayout()
+        divider_line1 = QFrame()
+        divider_line1.setFrameShape(QFrame.HLine)
+        divider_line1.setStyleSheet("color: #e5e7eb; border: 1px solid #e5e7eb;")
+        divider_line2 = QFrame()
+        divider_line2.setFrameShape(QFrame.HLine)
+        divider_line2.setStyleSheet("color: #e5e7eb; border: 1px solid #e5e7eb;")
+        
+        divider_layout.addWidget(divider_line1)
+        divider_layout.addWidget(divider_line2)
+        
+        form_layout.addSpacing(20)
+        form_layout.addLayout(divider_layout)
+        form_layout.addSpacing(10)
+        
+        # Public Dashboard Link
+        public_info = QLabel("Hanya ingin melihat ketersediaan ruangan?")
+        public_info.setStyleSheet("color: #6b7280; font-size: 13px;")
+        public_info.setAlignment(Qt.AlignCenter)
+        
+        self.back_btn = QPushButton("📅 Lihat Dashboard Publik")
+        self.back_btn.setObjectName("public_btn")
         self.back_btn.setCursor(Qt.PointingHandCursor)
         self.back_btn.setFixedHeight(40)
         self.back_btn.clicked.connect(self.handle_back)
         
-        btn_layout.addWidget(self.submit_btn)
-        btn_layout.addWidget(self.back_btn)
+        form_layout.addWidget(public_info)
+        form_layout.addWidget(self.back_btn)
         
-        self.main_layout.addLayout(btn_layout)
+        layout.addWidget(form_container)
+        
+        self.outer_layout.addWidget(scroll, stretch=1)
 
     def handle_login(self):
         username = self.username_input.text().strip()
         password = self.password_input.text()
         
-        # Reset errors
         self.error_label.setText("")
         self.error_label.hide()
         
@@ -161,7 +248,6 @@ class LoginPage(QWidget):
         self.submit_btn.setText("Memverifikasi...")
         
         try:
-            # Query pengguna dari Supabase
             supabase = get_supabase_client()
             user_data = supabase.table('pengguna').select(filters=f"username=eq.{username}")
             
@@ -178,18 +264,20 @@ class LoginPage(QWidget):
                 self.show_error("Akun Anda telah dinonaktifkan!")
                 return
                 
-            # Verifikasi password bcrypt
             if bcrypt.checkpw(password.encode('utf-8'), hashed_pw.encode('utf-8')):
-                if role != 'Admin':
-                    self.show_error("Akses ditolak! Hanya Administrator yang dapat masuk.")
-                    return
-                
                 # Sukses Login -> Bersihkan form & Switch screen
                 self.username_input.clear()
                 self.password_input.clear()
                 parent_widget = self.parent()
-                if parent_widget and hasattr(parent_widget, 'switch_to_admin'):
-                    parent_widget.switch_to_admin()
+                
+                if parent_widget:
+                    if role == 'Admin':
+                        if hasattr(parent_widget, 'switch_to_admin'):
+                            parent_widget.switch_to_admin()
+                    else:
+                        # Mahasiswa dan Dosen
+                        if hasattr(parent_widget, 'switch_to_mahasiswa'):
+                            parent_widget.switch_to_mahasiswa()
             else:
                 self.show_error("Username atau password salah!")
         except Exception as e:
@@ -197,14 +285,13 @@ class LoginPage(QWidget):
             self.show_error("Koneksi gagal! Periksa koneksi internet database Anda.")
         finally:
             self.submit_btn.setEnabled(True)
-            self.submit_btn.setText("Masuk Ke Sistem")
+            self.submit_btn.setText("Masuk")
 
     def show_error(self, message):
         self.error_label.setText(message)
         self.error_label.show()
 
     def handle_back(self):
-        # Bersihkan form
         self.username_input.clear()
         self.password_input.clear()
         self.error_label.hide()
@@ -214,6 +301,5 @@ class LoginPage(QWidget):
             parent_widget.switch_to_public()
 
     def apply_theme(self):
-        stylesheet = theme_manager.get_stylesheet()
-        if stylesheet:
-            self.setStyleSheet(stylesheet)
+        # We override the global theme for this specific page to keep its exact design
+        pass

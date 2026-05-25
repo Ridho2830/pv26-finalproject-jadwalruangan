@@ -47,6 +47,13 @@ class MainWindow(QStackedWidget):
         self.setCurrentWidget(self.admin_dashboard)
         self.admin_dashboard.refresh_data()
 
+    def switch_to_mahasiswa(self):
+        """Berpindah ke halaman mahasiswa (Landscape)."""
+        self.setMinimumSize(800, 500)
+        self.resize(1024, 768)
+        self.setCurrentWidget(self.mahasiswa_page)
+        self.mahasiswa_page.refresh_data()
+
 def main():
     app = QApplication(sys.argv)
     window = MainWindow()
