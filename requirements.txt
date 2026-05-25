@@ -6,3 +6,4 @@ qrcode
 Pillow
 scikit-learn
 bcrypt
+requests

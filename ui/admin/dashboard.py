@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QCursor
 from utils.components import CubeWidget
 from api.supabase import get_supabase_client
+from ui.chatbot import ChatbotDialog
 from datetime import datetime
 
 class FlowLayout(QLayout):
@@ -199,6 +200,11 @@ class AdminDashboard(QWidget):
         btn_new = QPushButton("+ Reservasi Baru")
         btn_new.setStyleSheet("background-color: #4f46e5; color: white; font-weight: bold; text-align: center;")
         layout.addWidget(btn_new)
+        
+        btn_ai = QPushButton("🤖 Tanya Asisten AI")
+        btn_ai.setStyleSheet("background-color: #0ea5e9; color: white; font-weight: bold; text-align: center;")
+        btn_ai.clicked.connect(self.show_chatbot)
+        layout.addWidget(btn_ai)
         
         layout.addSpacing(16)
         
@@ -436,6 +442,13 @@ class AdminDashboard(QWidget):
         big_cube = CubeWidget(hex_color, should_animate=True)
         big_cube.setFixedSize(140, 140)
         self.cube_container.addWidget(big_cube, alignment=Qt.AlignCenter)
+        
+    def show_chatbot(self):
+        if not hasattr(self, 'chatbot_dialog') or self.chatbot_dialog is None:
+            self.chatbot_dialog = ChatbotDialog(self)
+        self.chatbot_dialog.show()
+        self.chatbot_dialog.raise_()
+        self.chatbot_dialog.activateWindow()
         
     def handle_logout(self):
         parent_widget = self.parent()

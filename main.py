@@ -3,7 +3,7 @@ from PySide6.QtWidgets import QApplication, QStackedWidget
 from ui.index import StatusRuanganView
 from ui.loginPage import LoginPage
 from ui.admin.dashboard import AdminDashboard
-from ui.mahasiswa import MahasiswaPage
+from ui.mahasisw.mahasiswa import MahasiswaPage
 
 class MainWindow(QStackedWidget):
     def __init__(self):
