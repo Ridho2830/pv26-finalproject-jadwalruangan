@@ -14,12 +14,14 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFrame, QScrollArea, QSizePolicy,
     QLayout, QLayoutItem, QLineEdit, QGraphicsOpacityEffect,
-    QSpacerItem, QApplication, QStackedWidget
+    QSpacerItem, QApplication, QStackedWidget, QGridLayout
 )
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QCursor, QPixmap, QBrush
 from utils.components import CubeWidget
 from api.supabase import get_supabase_client
-from ui.chatbot import ChatbotDialog
+from utils.chatbot import ChatbotDialog
+from utils.detail_hari import DayDetailPopup
+
 from utils.mode import theme_manager
 from ui.admin.ruangan.kelola_ruangan import KelolaRuanganWidget
 from ui.admin.pengguna.kelola_pengguna import KelolaPenggunaWidget
@@ -410,6 +412,12 @@ class RoomDetailPanel(QFrame):
 # ──────────────────────────────────────────────
 #  ADMIN DASHBOARD
 # ──────────────────────────────────────────────
+class ClickableFrame(QFrame):
+    clicked = Signal()
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        self.clicked.emit()
+
 class AdminDashboard(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -440,7 +448,6 @@ class AdminDashboard(QWidget):
         dash_layout.setSpacing(0)
 
         self._build_main(dash_layout)
-        self._build_detail_panel(dash_layout)
 
         self.content_stack.addWidget(self.dashboard_page)
 
@@ -544,6 +551,7 @@ class AdminDashboard(QWidget):
             "font-weight:700;font-size:12px;margin:0 12px;}"
             "QPushButton:hover{background:#4338ca;}"
         )
+        btn_new.clicked.connect(self._on_new_reservasi)
         sb.addWidget(btn_new)
         sb.addSpacing(4)
 
@@ -624,129 +632,136 @@ class AdminDashboard(QWidget):
         self.main_frame.setObjectName("MainFrame")
         ml = QVBoxLayout(self.main_frame)
         ml.setContentsMargins(28, 20, 16, 20)
-        ml.setSpacing(16)
+        ml.setSpacing(12)
 
         # Top Bar
         top = QHBoxLayout()
-
-        self.lbl_page = QLabel("Dashboard")
+        self.lbl_page = QLabel("Dashboard (Kalender Bulanan)")
         self.lbl_page.setObjectName("PageTitle")
         top.addWidget(self.lbl_page)
         top.addStretch()
-
         self.lbl_time = QLabel("🕒 --:--")
         self.lbl_time.setObjectName("TimeLabel")
         top.addWidget(self.lbl_time)
-
         self._clock_timer = QTimer(self)
         self._clock_timer.timeout.connect(self._tick_clock)
         self._clock_timer.start(30_000)
         self._tick_clock()
-
         self.btn_theme = QPushButton()
         self.btn_theme.setObjectName("ThemeBtn")
         self.btn_theme.setFixedSize(90, 32)
         self.btn_theme.setCursor(QCursor(Qt.PointingHandCursor))
         self.btn_theme.clicked.connect(self.toggle_theme)
         top.addWidget(self.btn_theme)
-
         ml.addLayout(top)
 
         # KPI Strip
         kpi_row = QHBoxLayout()
         kpi_row.setSpacing(12)
-
         self.kpi_rooms   = KpiCard("Total Ruangan",    "0", "🏢", "#4f46e5")
-        self.kpi_active  = KpiCard("Reservasi Aktif",  "0", "📅", "#0ea5e9")
-        self.kpi_konflik = KpiCard("Konflik Menunggu", "0", "⚠️", "#f97316")
+        self.kpi_active  = KpiCard("Reservasi Bln Ini","0", "📅", "#0ea5e9")
+        self.kpi_konflik = KpiCard("Konflik Bulan Ini","0", "⚠️", "#f97316")
         self.kpi_users   = KpiCard("Total Pengguna",   "0", "👥", "#22c55e")
-
         for kpi in (self.kpi_rooms, self.kpi_active, self.kpi_konflik, self.kpi_users):
             kpi_row.addWidget(kpi)
         ml.addLayout(kpi_row)
 
-        # Warning Banner
-        self.warn_banner = QFrame()
-        self.warn_banner.setObjectName("WarnBanner")
-        wb = QHBoxLayout(self.warn_banner)
-        wb.setContentsMargins(16, 10, 16, 10)
-        self.lbl_warn = QLabel()
-        self.lbl_warn.setObjectName("WarnText")
-        btn_fix = QPushButton("Lihat Konflik →")
-        btn_fix.setCursor(QCursor(Qt.PointingHandCursor))
-        btn_fix.setStyleSheet(
-            "QPushButton{background:#f97316;color:white;border:none;border-radius:8px;"
-            "padding:5px 14px;font-weight:700;font-size:11px;}"
-            "QPushButton:hover{background:#ea580c;}"
+        # Filters
+        from datetime import date
+        filter_layout = QHBoxLayout()
+        filter_layout.addWidget(QLabel("Tahun:"))
+        from PySide6.QtWidgets import QComboBox
+        self.cb_year = QComboBox()
+        current_year = date.today().year
+        self.cb_year.addItems([str(y) for y in range(current_year-1, current_year+3)])
+        self.cb_year.setCurrentText(str(current_year))
+        self.cb_year.currentIndexChanged.connect(self.refresh_data)
+        filter_layout.addWidget(self.cb_year)
+        
+        filter_layout.addSpacing(16)
+        
+        filter_layout.addWidget(QLabel("Bulan:"))
+        self.cb_month = QComboBox()
+        months = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+        self.cb_month.addItems(months)
+        self.cb_month.setCurrentIndex(date.today().month - 1)
+        self.cb_month.currentIndexChanged.connect(self.refresh_data)
+        filter_layout.addWidget(self.cb_month)
+        
+        filter_layout.addStretch()
+        ml.addLayout(filter_layout)
+
+        # Calendar Container
+        self.calendar_bg = QFrame()
+        self.calendar_bg.setStyleSheet(
+            "QFrame { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; }"
         )
-        wb.addWidget(self.lbl_warn)
-        wb.addStretch()
-        wb.addWidget(btn_fix)
-        ml.addWidget(self.warn_banner)
-        self.warn_banner.hide()
-
-        # Section header
-        list_hdr = QHBoxLayout()
-        self.lbl_section = QLabel("Status Ruangan Hari Ini")
-        self.lbl_section.setObjectName("SectionTitle")
-        list_hdr.addWidget(self.lbl_section)
-        list_hdr.addStretch()
-
-        self.search = QLineEdit()
-        self.search.setPlaceholderText("🔍  Cari ruangan…")
-        self.search.setFixedWidth(200)
-        self.search.setFixedHeight(32)
-        self.search.setObjectName("SearchBox")
-        self.search.textChanged.connect(self._filter_cards)
-        list_hdr.addWidget(self.search)
-
-        legend2 = QLabel()
-        legend2.setObjectName("Legend")
-        legend2.setText(
-            "<span style='color:#22c55e'>●</span> Tersedia &nbsp;"
-            "<span style='color:#ef4444'>●</span> Digunakan &nbsp;"
-            "<span style='color:#3b82f6'>●</span> Dosen &nbsp;"
-            "<span style='color:#f97316'>●</span> Konflik"
-        )
-        legend2.setTextFormat(Qt.RichText)
-        legend2.setStyleSheet("font-size:10px; background:transparent;")
-        list_hdr.addWidget(legend2)
-        ml.addLayout(list_hdr)
-
-        # Room Cards Scroll
+        cal_layout = QVBoxLayout(self.calendar_bg)
+        cal_layout.setContentsMargins(0, 0, 0, 0)
+        cal_layout.setSpacing(0)
+        
+        # Header Hari
+        header_widget = QWidget()
+        header_widget.setStyleSheet("background: transparent;")
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(0)
+        
+        days_of_week = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+        for d in days_of_week:
+            lbl = QLabel(d)
+            lbl.setAlignment(Qt.AlignCenter)
+            lbl.setStyleSheet("font-weight: 800; font-size: 11px; padding: 12px 0; color: #94a3b8; border-right: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.1);")
+            header_layout.addWidget(lbl)
+            
+        cal_layout.addWidget(header_widget)
+        
+        # Grid Scroll Area
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setFrameShape(QFrame.NoFrame)
-        self.scroll.setObjectName("RoomScroll")
-        self.scroll.setStyleSheet("QScrollArea#RoomScroll { background:transparent; }")
-
-        self.flow_container = QWidget()
-        self.flow_container.setObjectName("FlowContainer")
-        self.flow_container.setStyleSheet("QWidget#FlowContainer { background:transparent; }")
-        self.flow_layout = FlowLayout(self.flow_container, margin=0, hSpacing=12, vSpacing=12)
-        self.scroll.setWidget(self.flow_container)
-        ml.addWidget(self.scroll)
-
+        self.scroll.setStyleSheet("QScrollArea { background:transparent; }")
+        
+        self.grid_container = QWidget()
+        self.grid_container.setStyleSheet("background:transparent;")
+        self.grid_layout = QGridLayout(self.grid_container)
+        self.grid_layout.setContentsMargins(0, 0, 0, 0)
+        self.grid_layout.setSpacing(0)
+        
+        self.scroll.setWidget(self.grid_container)
+        cal_layout.addWidget(self.scroll, stretch=1)
+        
+        ml.addWidget(self.calendar_bg, stretch=1)
         root.addWidget(self.main_frame, stretch=1)
-
-    # ─── DETAIL PANEL ───────────────────────────
-    def _build_detail_panel(self, root):
-        self.detail = RoomDetailPanel()
-        root.addWidget(self.detail)
+        
+        self.current_month_reservations = []
+        self.current_month_dates = []
 
     # ─── HELPERS ────────────────────────────────
     def _tick_clock(self):
         from datetime import datetime
         self.lbl_time.setText(f"🕒 {datetime.now().strftime('%H:%M')}")
 
-    def _filter_cards(self, text: str):
-        text = text.lower().strip()
-        for i in range(self.flow_layout.count()):
-            item = self.flow_layout.itemAt(i)
-            if item and item.widget():
-                w = item.widget()
-                nama = w.room_data.get("nama", "").lower()
-                w.setVisible(text == "" or text in nama)
+    def _select_week(self, idx: int):
+        if idx >= len(self.current_month_weeks):
+            idx = max(0, len(self.current_month_weeks) - 1)
+            
+        self.current_week_idx = idx
+        for i, btn in enumerate(self.week_buttons):
+            btn.setChecked(i == idx)
+            btn.setVisible(i < len(self.current_month_weeks))
+            
+        self._render_calendar_week()
+
+    def clear_layout(self, layout):
+        if layout is not None:
+            while layout.count():
+                item = layout.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+                elif item.layout() is not None:
+                    self.clear_layout(item.layout())
 
     # ─── THEME ──────────────────────────────────
     def toggle_theme(self):
@@ -763,93 +778,163 @@ class AdminDashboard(QWidget):
         label = " Terang" if self.is_dark else " Gelap"
         self.btn_theme.setText(icon + label)
 
-        for i in range(self.flow_layout.count()):
-            item = self.flow_layout.itemAt(i)
-            if item and item.widget() and hasattr(item.widget(), "update_theme"):
-                item.widget().update_theme(self.is_dark)
-
     def set_user_profile(self, user: dict):
-        """
-        Update profile section dari data user yang login.
-        Semua avatar handling lewat _set_avatar_image() biar konsisten.
-        """
-        if not user:
-            return
-
-        AVATAR_SIZE = 40  # konsisten dengan _build_sidebar
+        if not user: return
+        AVATAR_SIZE = 40
         name = user.get("nama", "Admin")
         role = user.get("role", "Administrator")
-
         self.lbl_profile_name.setText(name)
         self.lbl_profile_role.setText(role)
-
         role_lower = role.lower()
-
         if role_lower == "admin":
-            # Coba dari file, fallback ke inisial
-            img_path = os.path.join(os.path.dirname(__file__), '..', '..', 'assets', 'admin_profile.png')
-            if os.path.exists(img_path):
-                raw = QPixmap(img_path)
-                if not raw.isNull():
-                    self.lbl_profile_ava.setPixmap(make_circular_pixmap(raw, AVATAR_SIZE))
-                    return
-            # fallback inisial
             initials = "".join(w[0] for w in name.split() if w)[:2] or "AD"
-            self.lbl_profile_ava.setPixmap(
-                make_initial_avatar(initials, AVATAR_SIZE, bg_color="#4f46e5")
-            )
-
+            self.lbl_profile_ava.setPixmap(make_initial_avatar(initials, AVATAR_SIZE, bg_color="#4f46e5"))
         elif role_lower == "dosen":
             initials = "".join(w[0] for w in name.split() if w)[:2] or "DS"
-            self.lbl_profile_ava.setPixmap(
-                make_initial_avatar(initials, AVATAR_SIZE, bg_color="#0284c7")
-            )
-
-        else:  # mahasiswa / lainnya
+            self.lbl_profile_ava.setPixmap(make_initial_avatar(initials, AVATAR_SIZE, bg_color="#0284c7"))
+        else:
             initials = "".join(w[0] for w in name.split() if w)[:2] or "MH"
-            self.lbl_profile_ava.setPixmap(
-                make_initial_avatar(initials, AVATAR_SIZE, bg_color="#22c55e")
-            )
+            self.lbl_profile_ava.setPixmap(make_initial_avatar(initials, AVATAR_SIZE, bg_color="#22c55e"))
 
-    # ─── DATA ───────────────────────────────────
+    # ─── DATA & RENDERING ───────────────────────
     def refresh_data(self):
-        while self.flow_layout.count():
-            item = self.flow_layout.takeAt(0)
-            if item and item.widget():
-                item.widget().deleteLater()
-
         try:
+            year = int(self.cb_year.currentText())
+            month = self.cb_month.currentIndex() + 1
+            
+            import calendar
+            # firstweekday=6 means Sunday
+            cal = calendar.Calendar(firstweekday=6)
+            self.current_month_dates = cal.monthdatescalendar(year, month)
+            
             supabase = get_supabase_client()
             rooms = supabase.table("ruangan").select() or []
             users = supabase.table("pengguna").select() or []
-
-            konflik_count = 0
-            for room in rooms:
-                card = RoomCard(room)
-                card.update_theme(self.is_dark)
-                card.clicked.connect(self.show_room_detail)
-                self.flow_layout.addWidget(card)
-                if normalize_status(room.get("status", "")) == "Konflik":
-                    konflik_count += 1
-
-            self.kpi_rooms.set_value(str(len(rooms)))
+            
+            self.room_map = {r["id"]: r for r in rooms}
+            
+            self.kpi_rooms.set_value(str(len(set([r["nama"] for r in rooms]))))
             self.kpi_users.set_value(str(len(users)))
-            self.kpi_active.set_value("87")
-            self.kpi_konflik.set_value(str(konflik_count))
-
-            if konflik_count > 0:
-                self.warn_banner.show()
-                self.lbl_warn.setText(f"⚡  {konflik_count} konflik prioritas membutuhkan perhatian Anda")
-            else:
-                self.warn_banner.hide()
-
-            if rooms:
-                self.show_room_detail(rooms[0])
-
+            
+            # Fetch reservations for the entire date range shown on the calendar
+            start_date = self.current_month_dates[0][0]
+            end_date = self.current_month_dates[-1][-1]
+            
+            reservations = supabase.table("reservasi").select(
+                "*,pengguna(role,nama)", f"tanggal=gte.{start_date}&tanggal=lte.{end_date}&status=eq.Disetujui"
+            )
+            self.current_month_reservations = reservations if isinstance(reservations, list) else []
+            self.kpi_active.set_value(str(len(self.current_month_reservations)))
+            self.kpi_konflik.set_value("0")
+            
+            self._render_monthly_calendar(month)
+            
         except Exception as e:
             print("Error loading dashboard data:", e)
 
+    def _render_monthly_calendar(self, target_month: int):
+        self.clear_layout(self.grid_layout)
+        
+        for row, week in enumerate(self.current_month_dates):
+            # QGridLayout row sizes should stretch uniformly
+            self.grid_layout.setRowStretch(row, 1)
+            for col, dt in enumerate(week):
+                self.grid_layout.setColumnStretch(col, 1)
+                
+                # Cell container
+                cell = ClickableFrame()
+                cell.setStyleSheet(
+                    "QFrame { border-right: 1px solid rgba(255,255,255,0.05); border-bottom: 1px solid rgba(255,255,255,0.05); background: transparent; }"
+                    "QFrame:hover { background: rgba(255,255,255,0.03); }"
+                )
+                
+                # Fixed minimum height for cells to look good
+                cell.setMinimumHeight(120)
+                
+                cell_layout = QVBoxLayout(cell)
+                cell_layout.setContentsMargins(4, 8, 4, 8)
+                cell_layout.setSpacing(4)
+                
+                # Date label
+                lbl_day = QLabel(str(dt.day))
+                lbl_day.setAlignment(Qt.AlignHCenter)
+                if dt.month == target_month:
+                    lbl_day.setStyleSheet("font-weight: bold; font-size: 13px; color: #f1f5f9; border: none;")
+                else:
+                    lbl_day.setStyleSheet("font-size: 13px; color: #475569; border: none;")
+                cell_layout.addWidget(lbl_day)
+                
+                # Events area
+                events_area = QWidget()
+                events_area.setStyleSheet("border: none; background: transparent;")
+                ev_layout = QVBoxLayout(events_area)
+                ev_layout.setContentsMargins(0, 0, 0, 0)
+                ev_layout.setSpacing(4)
+                
+                day_res = [r for r in self.current_month_reservations if r.get("tanggal") == dt.strftime("%Y-%m-%d")]
+                day_res.sort(key=lambda x: x.get("jam_mulai", "00:00"))
+                
+                max_events = 4
+                for i, res in enumerate(day_res):
+                    if i >= max_events:
+                        more_lbl = QLabel(f"+{len(day_res) - max_events} acara")
+                        more_lbl.setStyleSheet("color: #94a3b8; font-size: 10px; font-weight: bold; border: none;")
+                        ev_layout.addWidget(more_lbl)
+                        break
+                        
+                    ruangan = self.room_map.get(res.get("ruangan_id"), {})
+                    nama_ruang = ruangan.get("nama", "Unknown")
+                    jam = res.get("jam_mulai", "")[:5] # "08:00:00" -> "08:00"
+                    
+                    role = res.get("pengguna", {}).get("role", "").lower()
+                    
+                    bg_color = "rgba(59,130,246,0.2)" if role == "dosen" else "rgba(34,197,94,0.2)"
+                    text_color = "#93c5fd" if role == "dosen" else "#86efac"
+                    if not self.is_dark:
+                        bg_color = "rgba(59,130,246,0.15)" if role == "dosen" else "rgba(34,197,94,0.15)"
+                        text_color = "#1e3a8a" if role == "dosen" else "#14532d"
+                    
+                    btn = QPushButton(f"{jam} {nama_ruang}")
+                    btn.setCursor(QCursor(Qt.PointingHandCursor))
+                    btn.setStyleSheet(f"""
+                        QPushButton {{
+                            background: {bg_color};
+                            color: {text_color};
+                            border: none;
+                            border-radius: 4px;
+                            padding: 3px 6px;
+                            font-size: 10px;
+                            font-weight: 700;
+                            text-align: left;
+                        }}
+                        QPushButton:hover {{
+                            background: rgba(255,255,255,0.1);
+                        }}
+                    """)
+                    
+                    btn.setAttribute(Qt.WA_TransparentForMouseEvents)
+                    ev_layout.addWidget(btn)
+                
+                ev_layout.addStretch()
+                cell_layout.addWidget(events_area, stretch=1)
+                # Connect cell click
+                cell.clicked.connect(lambda d=dt: self.show_day_detail(d))
+                self.grid_layout.addWidget(cell, row, col)
+
+
     # ─── SIGNALS ────────────────────────────────
+    def _on_new_reservasi(self):
+        self.switch_page(3)
+        
+    def _on_buat_reservasi(self, ruangan_id: int):
+        self.switch_page(3)
+
+
+    def show_day_detail(self, dt):
+        day_res = [r for r in self.current_month_reservations if r.get("tanggal") == dt.strftime("%Y-%m-%d")]
+        self.popup = DayDetailPopup(dt, self.room_map.values(), day_res, is_dark=self.is_dark, parent=self)
+        self.popup.exec()
+
     def show_room_detail(self, data: dict):
         self.detail.load(data, self.is_dark)
 

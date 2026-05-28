@@ -144,8 +144,10 @@ class MessageBubble(QFrame):
 
         # Bubble text
         self.bubble = QLabel(text)
+        self.bubble.setTextFormat(Qt.MarkdownText)
         self.bubble.setWordWrap(True)
-        self.bubble.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.bubble.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.LinksAccessibleByMouse)
+        self.bubble.setOpenExternalLinks(True)
         self.bubble.setObjectName("BubbleUser" if self.is_user else "BubbleBot")
         self.bubble.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
@@ -254,10 +256,46 @@ class OllamaWorker(QThread):
 
     def run(self):
         url = "http://localhost:11434/api/generate"
+        
+        # Ambil data real-time dari Supabase
+        db_context = ""
+        try:
+            from api.supabase import get_supabase_client
+            supabase = get_supabase_client()
+            rooms = supabase.table('ruangan').select()
+            if rooms:
+                counts = {"Tersedia": 0, "Terbooking": 0, "Terpakai": 0}
+                details = []
+                for r in rooms:
+                    s = r.get('status', 'Tersedia')
+                    if s == "Digunakan": s = "Terpakai"
+                    elif s in ("Tidak Tersedia", "Nonaktif", "Maintenance"): s = "Terpakai"
+                    elif s == "Dosen": s = "Terbooking"
+                    
+                    if s in counts: 
+                        counts[s] += 1
+                    
+                    # Tambahkan ke detail (dibatasi 50 ruangan agar prompt tidak kepanjangan)
+                    if len(details) < 50:
+                        details.append(f"- {r.get('nama', 'Unknown')} (Kapasitas: {r.get('kapasitas', 0)}): {s}")
+                
+                if len(rooms) > 50:
+                    details.append(f"... (dan {len(rooms) - 50} ruangan lainnya)")
+
+                db_context = (
+                    f"\n\n--- DATA DATABASE SAAT INI (REAL-TIME) ---\n"
+                    f"Total Ruangan: {len(rooms)}\n"
+                    f"Statistik: {counts['Tersedia']} Tersedia, {counts['Terpakai']} Terpakai, {counts['Terbooking']} Terbooking\n"
+                    f"Daftar Detail Ruangan:\n" + "\n".join(details) + "\n----------------------------------------\n"
+                )
+        except Exception as e:
+            print(f"[AI Worker] Gagal mengambil data Supabase: {e}")
+
         system_prompt = (
             "Anda adalah Asisten AI untuk Sistem Reservasi Kampus. "
             "Gunakan bahasa Indonesia yang ramah, ringkas, dan profesional. "
             "Bantu pengguna terkait ketersediaan ruangan, aturan reservasi, atau fasilitas kampus."
+            f"{db_context}"
         )
         
         payload = {
@@ -267,7 +305,7 @@ class OllamaWorker(QThread):
         }
         
         try:
-            response = requests.post(url, json=payload, timeout=60)
+            response = requests.post(url, json=payload, timeout=180)
             if response.status_code == 200:
                 data = response.json()
                 reply = data.get("response", "").strip()

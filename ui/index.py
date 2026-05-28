@@ -9,7 +9,7 @@ from PySide6.QtGui import QColor
 # Impor komponen kustom dari utils
 from utils.components import CubeWidget
 from utils.mode import theme_manager
-from ui.detail_ruangan import DetailRuanganPopup
+from utils.detail_ruangan import DetailRuanganPopup
 
 class StatusRuanganView(QWidget):
     def __init__(self, parent=None):
@@ -227,8 +227,17 @@ class StatusRuanganView(QWidget):
         
         filtered_rooms = []
         
+        # Deduplikasi ruangan berdasarkan nama agar tidak ganda di layar
+        seen_names = set()
+        
         for r in rooms_data:
             name = r.get('nama', 'Unknown')
+            
+            # Lewati jika ruangan ini sudah ada
+            if name in seen_names:
+                continue
+            seen_names.add(name)
+            
             gedung = r.get('gedung', 'Unknown')
             lantai = r.get('lantai', 0)
             kapasitas = r.get('kapasitas', 0)
