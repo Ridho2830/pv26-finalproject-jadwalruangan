@@ -51,18 +51,23 @@ class KelolaPenggunaWidget(QWidget):
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.setFocusPolicy(Qt.NoFocus)
-        self.table.setShowGrid(False)
+        self.table.setShowGrid(True)
         self.table.setAlternatingRowColors(False)
         self.table.verticalHeader().setVisible(False)
         
         # Setup Column stretching
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.Stretch)          # Nama
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents) # Username
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents) # Role
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents) # NIM/NIP
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents) # Status
+        header.setSectionResizeMode(1, QHeaderView.Interactive)      # Username
+        header.setSectionResizeMode(2, QHeaderView.Interactive)      # Role
+        header.setSectionResizeMode(3, QHeaderView.Interactive)      # NIM/NIP
+        header.setSectionResizeMode(4, QHeaderView.Interactive)      # Status
         header.setSectionResizeMode(5, QHeaderView.Fixed)            # Aksi
+        
+        self.table.setColumnWidth(1, 150)
+        self.table.setColumnWidth(2, 120)
+        self.table.setColumnWidth(3, 150)
+        self.table.setColumnWidth(4, 120)
         self.table.setColumnWidth(5, 160) # Width for action buttons
         
         self.table.verticalHeader().setDefaultSectionSize(60) # Taller rows for premium feel

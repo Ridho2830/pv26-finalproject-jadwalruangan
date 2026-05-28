@@ -138,20 +138,28 @@ class KelolaReservasiWidget(QWidget):
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.SingleSelection)
         self.table.setFocusPolicy(Qt.NoFocus)
-        self.table.setShowGrid(False)
+        self.table.setShowGrid(True)
         self.table.setAlternatingRowColors(False)
         self.table.verticalHeader().setVisible(False)
 
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # Nama
-        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # Role
-        header.setSectionResizeMode(2, QHeaderView.ResizeToContents)  # Ruangan
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # Tanggal
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # Jam
+        header.setSectionResizeMode(0, QHeaderView.Interactive)       # Nama
+        header.setSectionResizeMode(1, QHeaderView.Interactive)       # Role
+        header.setSectionResizeMode(2, QHeaderView.Interactive)       # Ruangan
+        header.setSectionResizeMode(3, QHeaderView.Interactive)       # Tanggal
+        header.setSectionResizeMode(4, QHeaderView.Interactive)       # Jam
         header.setSectionResizeMode(5, QHeaderView.Stretch)           # Keperluan
-        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # Status
-        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # Catatan
+        header.setSectionResizeMode(6, QHeaderView.Interactive)       # Status
+        header.setSectionResizeMode(7, QHeaderView.Interactive)       # Catatan
         header.setSectionResizeMode(8, QHeaderView.Fixed)             # Aksi
+        
+        self.table.setColumnWidth(0, 160)
+        self.table.setColumnWidth(1, 100)
+        self.table.setColumnWidth(2, 140)
+        self.table.setColumnWidth(3, 110)
+        self.table.setColumnWidth(4, 110)
+        self.table.setColumnWidth(6, 120)
+        self.table.setColumnWidth(7, 160)
         self.table.setColumnWidth(8, 260)
 
         self.table.verticalHeader().setDefaultSectionSize(56)

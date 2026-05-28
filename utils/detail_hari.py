@@ -53,14 +53,14 @@ class DayDetailPopup(QDialog):
         # Map reservations by room_id
         res_by_room = {}
         for res in self.day_reservations:
-            r_id = res.get("ruangan_id")
+            r_id = str(res.get("ruangan_id"))
             if r_id not in res_by_room:
                 res_by_room[r_id] = []
             res_by_room[r_id].append(res)
             
         # Create cards for each room
         for room in self.all_rooms:
-            r_id = room.get("id")
+            r_id = str(room.get("id"))
             r_name = room.get("nama", "Unknown")
             reservations = res_by_room.get(r_id, [])
             

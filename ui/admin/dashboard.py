@@ -25,6 +25,7 @@ from utils.detail_hari import DayDetailPopup
 from utils.mode import theme_manager
 from ui.admin.ruangan.kelola_ruangan import KelolaRuanganWidget
 from ui.admin.pengguna.kelola_pengguna import KelolaPenggunaWidget
+from ui.admin.reservasi.kelola_reservasi import KelolaReservasiWidget
 
 STATUS_META = {
     "Tersedia": { "color": "#22c55e", "bg": "rgba(34,197,94,0.12)", "text": "#14532d", "label": "Tersedia" },
@@ -437,6 +438,7 @@ class AdminDashboard(QWidget):
         self._build_dashboard_page()
         self._build_ruangan_page()
         self._build_pengguna_page()
+        self._build_reservasi_page()
 
         self.refresh_data()
         self.apply_theme()
@@ -459,6 +461,10 @@ class AdminDashboard(QWidget):
         self.kelola_pengguna_page = KelolaPenggunaWidget(self)
         self.content_stack.addWidget(self.kelola_pengguna_page)
 
+    def _build_reservasi_page(self):
+        self.kelola_reservasi_page = KelolaReservasiWidget(self)
+        self.content_stack.addWidget(self.kelola_reservasi_page)
+
     def switch_page(self, index: int):
         for i, btn in enumerate(self.nav_buttons):
             btn.set_active(i == index)
@@ -466,10 +472,14 @@ class AdminDashboard(QWidget):
         if index < self.content_stack.count():
             self.content_stack.setCurrentIndex(index)
 
-        if index == 1 and hasattr(self, 'kelola_ruangan_page'):
+        if index == 0:
+            self.refresh_data()
+        elif index == 1 and hasattr(self, 'kelola_ruangan_page'):
             self.kelola_ruangan_page.refresh_data()
         elif index == 2 and hasattr(self, 'kelola_pengguna_page'):
             self.kelola_pengguna_page.refresh_data()
+        elif index == 3 and hasattr(self, 'kelola_reservasi_page'):
+            self.kelola_reservasi_page.refresh_data()
 
     # ─── SIDEBAR ────────────────────────────────
     def _build_sidebar(self, root):
@@ -582,6 +592,7 @@ class AdminDashboard(QWidget):
             ("🏠", "Dashboard"),
             ("🏢", "Kelola Ruangan"),
             ("👥", "Kelola Pengguna"),
+            ("📅", "Kelola Reservasi"),
             ("⚙️", "Pengaturan"),
         ]
         for i, (icon, label) in enumerate(nav_items):
@@ -864,15 +875,38 @@ class AdminDashboard(QWidget):
                     lbl_day.setStyleSheet("font-size: 13px; color: #475569; border: none;")
                 cell_layout.addWidget(lbl_day)
                 
+                day_res = [r for r in self.current_month_reservations if r.get("tanggal") == dt.strftime("%Y-%m-%d")]
+                day_res.sort(key=lambda x: x.get("jam_mulai", "00:00"))
+                
+                # -- ROOM STATUS SUMMARY --
+                total_rooms = len(self.room_map)
+                c_dosen = 0
+                c_mhs = 0
+                for r_id in self.room_map:
+                    r_res = [r for r in day_res if str(r.get("ruangan_id")) == str(r_id)]
+                    if r_res:
+                        if any((r.get("pengguna") or {}).get("role", "").lower() == "dosen" for r in r_res):
+                            c_dosen += 1
+                        else:
+                            c_mhs += 1
+                c_tersedia = total_rooms - c_dosen - c_mhs
+                
+                summary_html = (
+                    f"<span style='color: #22c55e;'>●</span> {c_tersedia} &nbsp; "
+                    f"<span style='color: #f97316;'>●</span> {c_dosen} &nbsp; "
+                    f"<span style='color: #ef4444;'>●</span> {c_mhs}"
+                )
+                summary_lbl = QLabel(summary_html)
+                summary_lbl.setStyleSheet("font-size: 11px; font-weight: 700; color: #94a3b8; padding-bottom: 4px; border: none; background: transparent;")
+                summary_lbl.setAlignment(Qt.AlignCenter)
+                cell_layout.addWidget(summary_lbl)
+                
                 # Events area
                 events_area = QWidget()
                 events_area.setStyleSheet("border: none; background: transparent;")
                 ev_layout = QVBoxLayout(events_area)
                 ev_layout.setContentsMargins(0, 0, 0, 0)
                 ev_layout.setSpacing(4)
-                
-                day_res = [r for r in self.current_month_reservations if r.get("tanggal") == dt.strftime("%Y-%m-%d")]
-                day_res.sort(key=lambda x: x.get("jam_mulai", "00:00"))
                 
                 max_events = 4
                 for i, res in enumerate(day_res):
@@ -882,7 +916,8 @@ class AdminDashboard(QWidget):
                         ev_layout.addWidget(more_lbl)
                         break
                         
-                    ruangan = self.room_map.get(res.get("ruangan_id"), {})
+                    # Use str() matching to safely find the room in case of int/string mismatch
+                    ruangan = next((v for k, v in self.room_map.items() if str(k) == str(res.get("ruangan_id"))), {})
                     nama_ruang = ruangan.get("nama", "Unknown")
                     jam = res.get("jam_mulai", "")[:5] # "08:00:00" -> "08:00"
                     
