@@ -1,6 +1,5 @@
 # ui/mahasiswa.py
 from functools import partial
-
 from PySide6.QtCore import (
     Qt,
     QEasingCurve,
@@ -22,24 +21,42 @@ from PySide6.QtWidgets import (
     QGraphicsDropShadowEffect,
     QGraphicsOpacityEffect,
     QPushButton,
-    QScrollArea
+    QScrollArea,
+    QStackedWidget
 )
 
+from utils.detail_ruangan import DetailRuanganPopup
 from utils.components import CubeWidget
 from utils.mode import theme_manager
+from ui.mahasiswa.peminjaman.peminjaman_saya import PeminjamanSayaPage
 
 
 class MahasiswaPage(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, pengguna_id, pengguna_nama, parent=None):
         super().__init__(parent)
+
+        self.pengguna_id = pengguna_id
+        self.pengguna_nama = pengguna_nama
+
         self.cards = []
         self.rooms_raw = []
         self.current_filter = "Semua"
+
         self.setup_ui()
         self.load_styles()
         self.refresh_data()
 
     def setup_ui(self):
+        self.stack = QStackedWidget()
+        self.dashboard_content = QWidget()
+        self.peminjaman_page = PeminjamanSayaPage(
+            pengguna_id=self.pengguna_id,
+            pengguna_nama=self.pengguna_nama
+        )
+
+        self.stack.addWidget(self.dashboard_content)
+        self.stack.addWidget(self.peminjaman_page)
+        
         self.setObjectName("mahasiswa_page")
 
         root_layout = QHBoxLayout(self)
@@ -59,28 +76,55 @@ class MahasiswaPage(QWidget):
 
         logo = QLabel("ReservasiKampus")
         logo.setObjectName("sidebar_logo")
-        
-        self.lbl_profile_name = QLabel("Pengguna")
-        self.lbl_profile_name.setStyleSheet("color: white; font-size: 15px; font-weight: bold;")
-        sidebar_layout.addWidget(self.lbl_profile_name)
-        dashboard_btn = QPushButton("Dashboard")
-        booking_btn = QPushButton("Jadwal Ruangan")
-        history_btn = QPushButton("Peminjaman Saya")
-        profile_btn = QPushButton("Riwayat")
 
-        buttons = [dashboard_btn, booking_btn, history_btn, profile_btn]
+        user_name = QLabel(self.pengguna_nama)
+        user_name.setStyleSheet("""
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        """)
 
-        for btn in buttons:
+        sidebar_layout.addWidget(user_name)
+
+        # =====================================================
+        # BUTTON
+        # =====================================================
+        self.dashboard_btn = QPushButton("Dashboard")
+        self.booking_btn = QPushButton("Jadwal Ruangan")
+        self.history_btn = QPushButton("Peminjaman Saya")
+        self.profile_btn = QPushButton("Riwayat")
+
+        self.sidebar_buttons = [
+            self.dashboard_btn,
+            self.booking_btn,
+            self.history_btn,
+            self.profile_btn
+        ]
+
+        for btn in self.sidebar_buttons:
             btn.setCursor(Qt.PointingHandCursor)
             btn.setMinimumHeight(42)
+            btn.setCheckable(True)
             btn.setObjectName("sidebar_btn")
 
-        booking_btn.setObjectName("sidebar_btn_active")
+        # DEFAULT ACTIVE
+        self.dashboard_btn.setChecked(True)
 
         sidebar_layout.addWidget(logo)
         sidebar_layout.addSpacing(20)
 
-        for btn in buttons:
+        # =====================================================
+        # CLICK EVENT
+        # =====================================================
+        self.dashboard_btn.clicked.connect(self.on_dashboard_clicked)
+        self.history_btn.clicked.connect(self.on_peminjaman_clicked)
+
+        # nanti kalau halaman lain sudah ada
+        # self.booking_btn.clicked.connect(self.on_booking_clicked)
+        # self.profile_btn.clicked.connect(self.on_profile_clicked)
+
+        for btn in self.sidebar_buttons:
             sidebar_layout.addWidget(btn)
 
         sidebar_layout.addStretch()
@@ -95,8 +139,8 @@ class MahasiswaPage(QWidget):
         # =====================================================
         # CONTENT
         # =====================================================
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
+
+        content_layout = QVBoxLayout(self.dashboard_content)
         content_layout.setContentsMargins(32, 32, 32, 32)
         content_layout.setSpacing(24)
 
@@ -164,9 +208,8 @@ class MahasiswaPage(QWidget):
         # =====================================================
         # ROOT
         # =====================================================
-
         root_layout.addWidget(sidebar)
-        root_layout.addWidget(content)
+        root_layout.addWidget(self.stack)
     
     def refresh_data(self):
         """Memperbarui data ruangan dari database Supabase dan merender kartu ruangan."""
@@ -194,7 +237,7 @@ class MahasiswaPage(QWidget):
                 rooms_data = []
         except Exception as e:
             print("Supabase Error:", e)
-            ooms_data = []
+            rooms_data = []
         
         if not rooms_data:
             rooms_data = []
@@ -415,14 +458,52 @@ class MahasiswaPage(QWidget):
             self.canvas_layout.addWidget(card, row, col)
             
     def _on_card_clicked(self, event=None, index=0):
-        room = self.rooms_raw[index]
+        if index < len(self.rooms_raw):
+            room_data = self.rooms_raw[index]
+            popup = DetailRuanganPopup(room_data, parent=self)
+            popup.exec()
+            
+    def show_dashboard(self):
+        self.stack.setCurrentWidget(self.dashboard_content)
+
+    # def show_jadwal(self):
+    #     self.stack.setCurrentWidget(self.jadwal_page)
+
+    def show_peminjaman(self):
+        self.stack.setCurrentWidget(self.peminjaman_page)
+
+    # def show_riwayat(self):
+    #     self.stack.setCurrentWidget(self.riwayat_page)
+
+    def reset_sidebar(self):
+        for btn in self.sidebar_buttons:
+            btn.setChecked(False)
+
+
+    def on_dashboard_clicked(self):
+        self.reset_sidebar()
+        self.dashboard_btn.setChecked(True)
+        self.show_dashboard()
+
+
+    def on_peminjaman_clicked(self):
+        self.reset_sidebar()
+        self.history_btn.setChecked(True)
+        self.show_peminjaman()
+
+    # nanti kalau halaman lain sudah ada
+    # def on_booking_clicked(self):
+    #     self.reset_sidebar()
+    #     self.booking_btn.setChecked(True)
+    #     self.show_jadwal()
+
+    # def on_profile_clicked(self):
+    #     self.reset_sidebar()
+    #     self.profile_btn.setChecked(True)
+    #     self.show_riwayat()
 
     def toggle_theme(self):
         theme_manager.toggle_theme()
-
-    def set_user_profile(self, user: dict):
-        if user:
-            self.lbl_profile_name.setText(user.get("nama", "Pengguna"))
 
     def load_styles(self):
         self.setStyleSheet(
@@ -541,3 +622,4 @@ class MahasiswaPage(QWidget):
             }
         """
         )
+    
