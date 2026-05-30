@@ -29,6 +29,7 @@ from utils.detail_ruangan import DetailRuanganPopup
 from utils.components import CubeWidget
 from utils.mode import theme_manager
 from ui.mahasiswa.peminjaman.peminjaman_saya import PeminjamanSayaPage
+from ui.mahasiswa.Riwayat.riwayat_peminjaman import RiwayatPeminjamanPage
 
 
 class MahasiswaPage(QWidget):
@@ -53,9 +54,14 @@ class MahasiswaPage(QWidget):
             pengguna_id=self.pengguna_id,
             pengguna_nama=self.pengguna_nama
         )
+        self.riwayat_page = RiwayatPeminjamanPage(
+            pengguna_id=self.pengguna_id,
+            pengguna_nama=self.pengguna_nama
+        )
 
         self.stack.addWidget(self.dashboard_content)
         self.stack.addWidget(self.peminjaman_page)
+        self.stack.addWidget(self.riwayat_page)
         
         self.setObjectName("mahasiswa_page")
 
@@ -91,15 +97,15 @@ class MahasiswaPage(QWidget):
         # BUTTON
         # =====================================================
         self.dashboard_btn = QPushButton("Dashboard")
-        self.booking_btn = QPushButton("Jadwal Ruangan")
-        self.history_btn = QPushButton("Peminjaman Saya")
-        self.profile_btn = QPushButton("Riwayat")
+        self.date_room_btn = QPushButton("Jadwal Ruangan")
+        self.booking_btn = QPushButton("Peminjaman Saya")
+        self.history_btn = QPushButton("Riwayat")
 
         self.sidebar_buttons = [
             self.dashboard_btn,
+            self.date_room_btn,
             self.booking_btn,
-            self.history_btn,
-            self.profile_btn
+            self.history_btn
         ]
 
         for btn in self.sidebar_buttons:
@@ -118,11 +124,8 @@ class MahasiswaPage(QWidget):
         # CLICK EVENT
         # =====================================================
         self.dashboard_btn.clicked.connect(self.on_dashboard_clicked)
-        self.history_btn.clicked.connect(self.on_peminjaman_clicked)
-
-        # nanti kalau halaman lain sudah ada
-        # self.booking_btn.clicked.connect(self.on_booking_clicked)
-        # self.profile_btn.clicked.connect(self.on_profile_clicked)
+        self.booking_btn.clicked.connect(self.on_peminjaman_clicked)
+        self.history_btn.clicked.connect(self.on_riwayat_clicked)
 
         for btn in self.sidebar_buttons:
             sidebar_layout.addWidget(btn)
@@ -133,6 +136,7 @@ class MahasiswaPage(QWidget):
         logout_btn.setCursor(Qt.PointingHandCursor)
         logout_btn.setMinimumHeight(42)
         logout_btn.setObjectName("logout_btn")
+        logout_btn.clicked.connect(self.handle_logout)
 
         sidebar_layout.addWidget(logout_btn)
 
@@ -227,11 +231,7 @@ class MahasiswaPage(QWidget):
         from api.supabase import get_supabase_client
         supabase = get_supabase_client()
         try:
-            rooms_data = (
-				supabase
-				.table("ruangan")
-				.select("*")
-			)
+            rooms_data = supabase.table("ruangan").select(query="*")
             
             if not rooms_data:
                 rooms_data = []
@@ -466,41 +466,37 @@ class MahasiswaPage(QWidget):
     def show_dashboard(self):
         self.stack.setCurrentWidget(self.dashboard_content)
 
-    # def show_jadwal(self):
-    #     self.stack.setCurrentWidget(self.jadwal_page)
-
     def show_peminjaman(self):
         self.stack.setCurrentWidget(self.peminjaman_page)
 
-    # def show_riwayat(self):
-    #     self.stack.setCurrentWidget(self.riwayat_page)
+    def show_riwayat(self):
+        self.riwayat_page.refresh_data()
+        self.stack.setCurrentWidget(self.riwayat_page)
 
     def reset_sidebar(self):
         for btn in self.sidebar_buttons:
             btn.setChecked(False)
-
 
     def on_dashboard_clicked(self):
         self.reset_sidebar()
         self.dashboard_btn.setChecked(True)
         self.show_dashboard()
 
-
     def on_peminjaman_clicked(self):
         self.reset_sidebar()
-        self.history_btn.setChecked(True)
+        self.booking_btn.setChecked(True)
         self.show_peminjaman()
 
-    # nanti kalau halaman lain sudah ada
-    # def on_booking_clicked(self):
-    #     self.reset_sidebar()
-    #     self.booking_btn.setChecked(True)
-    #     self.show_jadwal()
+    def on_riwayat_clicked(self):
+        self.reset_sidebar()
+        self.history_btn.setChecked(True)
+        self.show_riwayat()
 
-    # def on_profile_clicked(self):
-    #     self.reset_sidebar()
-    #     self.profile_btn.setChecked(True)
-    #     self.show_riwayat()
+    def handle_logout(self):
+        """Kembali ke halaman login."""
+        parent_widget = self.parent()
+        if parent_widget and hasattr(parent_widget, 'switch_to_login'):
+            parent_widget.switch_to_login()
 
     def toggle_theme(self):
         theme_manager.toggle_theme()

@@ -5,7 +5,7 @@ from PySide6.QtGui import QScreen
 from ui.index import StatusRuanganView
 from ui.loginPage import LoginPage
 from ui.admin.dashboard import AdminDashboard
-from ui.mahasisw.mahasiswa import MahasiswaPage
+from ui.mahasiswa.dashboard_mahasiswa import MahasiswaPage
 
 class MainWindow(QStackedWidget):
     def __init__(self):
@@ -32,13 +32,12 @@ class MainWindow(QStackedWidget):
         self.public_view = StatusRuanganView(self)
         self.login_page = LoginPage(self)
         self.admin_dashboard = AdminDashboard(self)
-        self.mahasiswa_page = MahasiswaPage(self)
+        self.mahasiswa_page = None
         
         # Tambah ke stacked widget
         self.addWidget(self.public_view)      # Index 0
         self.addWidget(self.login_page)       # Index 1
         self.addWidget(self.admin_dashboard)  # Index 2
-        self.addWidget(self.mahasiswa_page)   # Index 3
         
         # Tampilkan halaman utama (Public View)
         self.switch_to_public()
@@ -59,12 +58,25 @@ class MainWindow(QStackedWidget):
         self.setCurrentWidget(self.admin_dashboard)
         self.admin_dashboard.refresh_data()
 
-    def switch_to_mahasiswa(self, user=None):
-        """Berpindah ke halaman mahasiswa (Landscape)."""
-        if user and hasattr(self.mahasiswa_page, 'set_user_profile'):
-            self.mahasiswa_page.set_user_profile(user)
+    def switch_to_mahasiswa(self, user: dict):
+
+        pengguna_id   = user.get('id')
+        # Coba ambil 'nama', fallback ke 'username' jika kolom nama tidak ada
+        pengguna_nama = user.get('nama') or user.get('username', 'Pengguna')
+
+        # Hapus halaman lama dari stack jika sudah pernah dibuat
+        if self.mahasiswa_page is not None:
+            self.removeWidget(self.mahasiswa_page)
+            self.mahasiswa_page.deleteLater()
+
+        # Buat halaman baru dengan data user yang baru login
+        self.mahasiswa_page = MahasiswaPage(
+            pengguna_id=pengguna_id,
+            pengguna_nama=pengguna_nama,
+            parent=self
+        )
+        self.addWidget(self.mahasiswa_page)
         self.setCurrentWidget(self.mahasiswa_page)
-        self.mahasiswa_page.refresh_data()
 
 def main():
     app = QApplication(sys.argv)
