@@ -177,25 +177,11 @@ class PeminjamanSayaPage(QWidget):
             # AMBIL DATA DARI SUPABASE
             # ======================================================
 
-            response = (
-                supabase
-                .table("reservasi")
-                .select("""
-                    *,
-                    ruangan (
-                        id,
-                        nama,
-                        gedung,
-                        lantai,
-                        kapasitas
-                    )
-                """)
-                .eq("pengguna_id", self.pengguna_id)
-                .order("created_at", desc=True)
-                .execute()
-            )
+            query = "*,ruangan(id,nama,gedung,lantai,kapasitas)"
+            filters = f"pengguna_id=eq.{self.pengguna_id}&order=created_at.desc"
+            response = supabase.table("reservasi").select(query, filters)
 
-            self.reservasi_list = response.data or []
+            self.reservasi_list = response if isinstance(response, list) else []
 
         except Exception as e:
             print(f"[ERROR REFRESH DATA] {e}")
@@ -280,12 +266,7 @@ class PeminjamanSayaPage(QWidget):
         reservasi_id = reservasi.get("id")
 
         try:
-            (
-            supabase.table("reservasi")
-            .update({"status": "Dibatalkan"})
-            .eq("id", reservasi_id)
-            .execute()
-        )
+            supabase.table("reservasi").update({"status": "Dibatalkan"}, f"id=eq.{reservasi_id}")
 
         except Exception as e:
             QMessageBox.critical(self, "Error", str(e))
@@ -469,11 +450,21 @@ class PeminjamanSayaPage(QWidget):
 
 
     def _clear_cards(self):
+        if hasattr(self, 'anim_group') and self.anim_group is not None:
+            self.anim_group.stop()
+            self.anim_group.clear()
+            self.anim_group.deleteLater()
+            self.anim_group = None
+
         while self.list_layout.count() > 1:
             item = self.list_layout.takeAt(0)
-
-            if item.widget():
-                item.widget().deleteLater()
+            widget = item.widget()
+            if widget:
+                try:
+                    widget.setGraphicsEffect(None)
+                except RuntimeError:
+                    pass
+                widget.deleteLater()
 
     # ==============================================================
     # ANIMATION
@@ -485,16 +476,17 @@ class PeminjamanSayaPage(QWidget):
         for card in self.cards:
             effect = card.graphicsEffect()
 
-            anim = QPropertyAnimation(effect, b"opacity")
+            anim = QPropertyAnimation(effect, b"opacity", self.anim_group)
             anim.setDuration(350)
             anim.setStartValue(0)
             anim.setEndValue(1)
             anim.setEasingCurve(QEasingCurve.OutCubic)
 
             self.anim_group.addAnimation(anim)
-            self.anim_group.addAnimation(QPauseAnimation(60))
+            self.anim_group.addAnimation(QPauseAnimation(60, self.anim_group))
 
-        self.anim_group.start()
+        if self.anim_group.animationCount() > 0:
+            self.anim_group.start()
 
     # ==============================================================
     # STYLE

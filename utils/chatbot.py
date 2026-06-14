@@ -560,11 +560,22 @@ class ChatbotDialog(QDialog):
         QTimer.singleShot(1000, lambda: self._bot_reply(text))
 
     def _bot_reply(self, query: str):
-        # Mulai thread Ollama
-        self.worker = OllamaWorker(query, self)
-        self.worker.finished_signal.connect(self._on_bot_success)
-        self.worker.error_signal.connect(self._on_bot_error)
-        self.worker.start()
+        # Mulai thread Ollama tanpa parent agar tidak dihancurkan saat dialog ditutup tiba-tiba
+        worker = OllamaWorker(query, None)
+        
+        if not hasattr(self, '_workers'):
+            self._workers = []
+        self._workers.append(worker)
+
+        worker.finished_signal.connect(self._on_bot_success)
+        worker.error_signal.connect(self._on_bot_error)
+        worker.finished.connect(lambda w=worker: self._cleanup_worker(w))
+        worker.start()
+
+    def _cleanup_worker(self, worker):
+        if hasattr(self, '_workers') and worker in self._workers:
+            self._workers.remove(worker)
+        worker.deleteLater()
 
     def _on_bot_success(self, reply: str):
         self._hide_typing()

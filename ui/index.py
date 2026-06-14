@@ -199,14 +199,21 @@ class StatusRuanganView(QWidget):
                 item = layout.takeAt(0)
                 widget = item.widget()
                 if widget is not None:
+                    try:
+                        widget.setGraphicsEffect(None)
+                    except RuntimeError:
+                        pass
                     widget.deleteLater()
                 else:
                     self.clear_layout(item.layout())
 
     def refresh_data(self):
         """Memperbarui data ruangan dari database Supabase dan merender kartu ruangan."""
-        if hasattr(self, 'anim_group') and self.anim_group.state() == QParallelAnimationGroup.Running:
+        if hasattr(self, 'anim_group'):
             self.anim_group.stop()
+            self.anim_group.clear()
+            self.anim_group.deleteLater()
+            del self.anim_group
             
         self.clear_layout(self.canvas_layout)
         self.cards = []
@@ -409,14 +416,15 @@ class StatusRuanganView(QWidget):
         for idx, container in enumerate(self.cards):
             effect = container.graphicsEffect()
             if isinstance(effect, QGraphicsOpacityEffect):
-                anim = QPropertyAnimation(effect, b"opacity")
+                seq_group = QSequentialAnimationGroup(self.anim_group)
+                
+                anim = QPropertyAnimation(effect, b"opacity", seq_group)
                 anim.setDuration(450)
                 anim.setStartValue(0.0)
                 anim.setEndValue(1.0)
                 anim.setEasingCurve(QEasingCurve.OutCubic)
                 
-                seq_group = QSequentialAnimationGroup(self)
-                pause = QPauseAnimation(idx * 75, self)
+                pause = QPauseAnimation(idx * 75, seq_group)
                 seq_group.addAnimation(pause)
                 seq_group.addAnimation(anim)
                 
@@ -428,7 +436,9 @@ class StatusRuanganView(QWidget):
                 
                 seq_group.finished.connect(safe_remove_effect)
                 self.anim_group.addAnimation(seq_group)
-        self.anim_group.start()
+                
+        if self.anim_group.animationCount() > 0:
+            self.anim_group.start()
 
     def _on_card_clicked(self, event, index):
         if index < len(self.rooms_raw):

@@ -242,19 +242,13 @@ class DialogUpdateReservasi(QDialog):
 		try:
 			reservasi_id = self.reservasi_data.get("id")
 
-			(
-				self.supabase
-				.table("reservasi")
-				.update({
-					"tanggal": tanggal,
-					"jam_mulai": jam_mulai,
-					"jam_selesai": jam_selesai,
-					"keperluan": keperluan,
-					"status": "Pending"
-				})
-				.eq("id", reservasi_id)
-				.execute()
-			)
+			self.supabase.table("reservasi").update({
+				"tanggal": tanggal,
+				"jam_mulai": jam_mulai,
+				"jam_selesai": jam_selesai,
+				"keperluan": keperluan,
+				"status": "Pending"
+			}, f"id=eq.{reservasi_id}")
 
 			QMessageBox.information(
 				self,
@@ -357,6 +351,348 @@ class DialogUpdateReservasi(QDialog):
 			}
 
 			#btn_save:hover {
-				background: #ea580c;
+			background: #ea580c;
+		}
+		""")
+
+
+class DialogBuatReservasi(QDialog):
+	"""Dialog untuk membuat reservasi baru dari sisi mahasiswa."""
+
+	def __init__(self, pengguna_id: int, ruangan_preselect: dict = None, parent=None):
+		super().__init__(parent)
+
+		self.pengguna_id = pengguna_id
+		self.ruangan_preselect = ruangan_preselect
+		self.supabase = get_supabase_client()
+		self.room_list = []
+
+		self.setWindowTitle("Buat Reservasi Baru")
+		self.resize(680, 560)
+		self.setModal(True)
+
+		self._load_rooms()
+		self._build_ui()
+		self._load_styles()
+
+	# ==========================================================
+	# LOAD DATA
+	# ==========================================================
+
+	def _load_rooms(self):
+		try:
+			data = self.supabase.table("ruangan").select()
+			if isinstance(data, list):
+				seen = set()
+				for r in data:
+					nama = r.get("nama", "")
+					if nama not in seen:
+						seen.add(nama)
+						self.room_list.append(r)
+		except Exception as e:
+			print(f"[DialogBuatReservasi] Error load ruangan: {e}")
+
+	# ==========================================================
+	# UI
+	# ==========================================================
+
+	def _build_ui(self):
+		root = QVBoxLayout(self)
+		root.setContentsMargins(24, 24, 24, 24)
+		root.setSpacing(18)
+
+		# HEADER
+		title = QLabel("📅 Buat Reservasi Baru")
+		title.setObjectName("dialog_title")
+
+		subtitle = QLabel(
+			"Pilih ruangan, waktu, dan keperluan untuk membuat reservasi."
+		)
+		subtitle.setObjectName("dialog_subtitle")
+
+		root.addWidget(title)
+		root.addWidget(subtitle)
+
+		# INFO
+		info_card = QFrame()
+		info_card.setObjectName("warning_card")
+
+		info_layout = QHBoxLayout(info_card)
+		info_layout.setContentsMargins(14, 12, 14, 12)
+
+		info_text = QLabel(
+			"Reservasi akan berstatus Pending hingga disetujui oleh admin."
+		)
+		info_text.setObjectName("warning_text")
+		info_text.setWordWrap(True)
+
+		info_layout.addWidget(info_text)
+
+		root.addWidget(info_card)
+
+		# 1. PILIH RUANGAN
+		room_card = QFrame()
+		room_card.setObjectName("section_card")
+
+		room_layout = QVBoxLayout(room_card)
+
+		room_title = QLabel("1. Pilih Ruangan")
+		room_title.setObjectName("section_title")
+
+		self.room_combo = QComboBox()
+		self.room_combo.setFixedHeight(40)
+
+		preselect_idx = 0
+		for i, r in enumerate(self.room_list):
+			nama = r.get("nama", "Unknown")
+			gedung = r.get("gedung", "-")
+			lantai = r.get("lantai", "-")
+			kap = r.get("kapasitas", 0)
+			label = f"{nama}  —  Gedung {gedung}, Lt. {lantai} ({kap} orang)"
+			self.room_combo.addItem(label, r)
+
+			if (self.ruangan_preselect
+					and r.get("id") == self.ruangan_preselect.get("id")):
+				preselect_idx = i
+
+		if self.room_list:
+			self.room_combo.setCurrentIndex(preselect_idx)
+
+		room_layout.addWidget(room_title)
+		room_layout.addWidget(self.room_combo)
+
+		root.addWidget(room_card)
+
+		# 2. PILIH WAKTU
+		time_card = QFrame()
+		time_card.setObjectName("section_card")
+
+		time_layout = QVBoxLayout(time_card)
+
+		time_title = QLabel("2. Pilih Waktu")
+		time_title.setObjectName("section_title")
+
+		row = QHBoxLayout()
+
+		self.date_edit = QDateEdit()
+		self.date_edit.setCalendarPopup(True)
+		self.date_edit.setDate(QDate.currentDate())
+		self.date_edit.setMinimumDate(QDate.currentDate())
+
+		self.start_time = QTimeEdit()
+		self.start_time.setTime(QTime(8, 0))
+		self.start_time.setDisplayFormat("HH:mm")
+
+		self.end_time = QTimeEdit()
+		self.end_time.setTime(QTime(10, 0))
+		self.end_time.setDisplayFormat("HH:mm")
+
+		row.addWidget(self.date_edit)
+		row.addWidget(self.start_time)
+		row.addWidget(self.end_time)
+
+		time_layout.addWidget(time_title)
+		time_layout.addLayout(row)
+
+		root.addWidget(time_card)
+
+		# 3. KEPERLUAN
+		purpose_card = QFrame()
+		purpose_card.setObjectName("section_card")
+
+		purpose_layout = QVBoxLayout(purpose_card)
+
+		purpose_title = QLabel("3. Keperluan")
+		purpose_title.setObjectName("section_title")
+
+		self.keperluan_input = QTextEdit()
+		self.keperluan_input.setPlaceholderText(
+			"Tuliskan tujuan penggunaan ruangan, contoh: "
+			"Rapat organisasi, Kelas pengganti, dll..."
+		)
+
+		purpose_layout.addWidget(purpose_title)
+		purpose_layout.addWidget(self.keperluan_input)
+
+		root.addWidget(purpose_card)
+
+		# BUTTONS
+		btn_row = QHBoxLayout()
+		btn_row.addStretch()
+
+		cancel_btn = QPushButton("Batal")
+		cancel_btn.setObjectName("btn_cancel")
+		cancel_btn.clicked.connect(self.reject)
+
+		submit_btn = QPushButton("📨 Ajukan Reservasi")
+		submit_btn.setObjectName("btn_save")
+		submit_btn.clicked.connect(self._submit_reservasi)
+
+		btn_row.addWidget(cancel_btn)
+		btn_row.addWidget(submit_btn)
+
+		root.addLayout(btn_row)
+
+	# ==========================================================
+	# SUBMIT
+	# ==========================================================
+
+	def _submit_reservasi(self):
+		if not self.room_list:
+			QMessageBox.warning(self, "Validasi", "Tidak ada ruangan tersedia.")
+			return
+
+		selected_room = self.room_combo.currentData()
+		if not selected_room:
+			QMessageBox.warning(self, "Validasi", "Pilih ruangan terlebih dahulu.")
+			return
+
+		ruangan_id = selected_room.get("id")
+		tanggal = self.date_edit.date().toString("yyyy-MM-dd")
+		jam_mulai = self.start_time.time().toString("HH:mm")
+		jam_selesai = self.end_time.time().toString("HH:mm")
+
+		if self.start_time.time() >= self.end_time.time():
+			QMessageBox.warning(
+				self, "Validasi",
+				"Jam selesai harus lebih besar dari jam mulai."
+			)
+			return
+
+		keperluan = self.keperluan_input.toPlainText().strip()
+		if not keperluan:
+			QMessageBox.warning(self, "Validasi", "Keperluan wajib diisi.")
+			return
+
+		nama_ruangan = selected_room.get("nama", "Unknown")
+		reply = QMessageBox.question(
+			self,
+			"Konfirmasi Reservasi",
+			f"Ajukan reservasi ruangan {nama_ruangan}?\n\n"
+			f"Tanggal: {tanggal}\n"
+			f"Waktu: {jam_mulai} - {jam_selesai}\n"
+			f"Keperluan: {keperluan}",
+			QMessageBox.Yes | QMessageBox.No,
+			QMessageBox.No,
+		)
+
+		if reply != QMessageBox.Yes:
+			return
+
+		try:
+			result = self.supabase.table("reservasi").insert({
+				"ruangan_id": ruangan_id,
+				"pengguna_id": self.pengguna_id,
+				"tanggal": tanggal,
+				"jam_mulai": jam_mulai,
+				"jam_selesai": jam_selesai,
+				"keperluan": keperluan,
+				"status": "Pending",
+			})
+
+			if result is not None:
+				QMessageBox.information(
+					self,
+					"Berhasil",
+					f"Reservasi ruangan {nama_ruangan} berhasil diajukan.\n"
+					f"Status: Pending (menunggu persetujuan admin).",
+				)
+				self.accept()
+			else:
+				QMessageBox.critical(
+					self, "Gagal",
+					"Gagal menyimpan reservasi. Silakan coba lagi."
+				)
+
+		except Exception as e:
+			QMessageBox.critical(self, "Error", f"Terjadi kesalahan:\n{e}")
+
+	# ==========================================================
+	# STYLE
+	# ==========================================================
+
+	def _load_styles(self):
+		self.setStyleSheet("""
+			QDialog {
+				background: #f7f7fb;
+				font-family: 'DM Sans';
+				color: #1f2937;
+			}
+
+			#dialog_title {
+				font-size: 28px;
+				font-weight: 700;
+				color: #111827;
+			}
+
+			#dialog_subtitle {
+				font-size: 14px;
+				color: #6b7280;
+				margin-bottom: 8px;
+			}
+
+			#warning_card {
+				background: #fff7ed;
+				border: 1px solid #fdba74;
+				border-radius: 12px;
+			}
+
+			#warning_text {
+				color: #c2410c;
+				font-size: 13px;
+				font-weight: 600;
+			}
+
+			#section_card {
+				background: white;
+				border: 1px solid #ece6ee;
+				border-radius: 16px;
+				padding: 8px;
+			}
+
+			#section_title {
+				font-size: 16px;
+				font-weight: 700;
+				margin-bottom: 10px;
+			}
+
+			QComboBox,
+			QDateEdit,
+			QTimeEdit,
+			QTextEdit {
+				border: 1px solid #d1d5db;
+				border-radius: 10px;
+				padding: 10px;
+				background: white;
+				font-size: 13px;
+			}
+
+			QTextEdit {
+				min-height: 100px;
+			}
+
+			#btn_cancel {
+				background: white;
+				border: 1px solid #d1d5db;
+				border-radius: 10px;
+				padding: 10px 18px;
+				font-weight: 700;
+			}
+
+			#btn_cancel:hover {
+				background: #f3f4f6;
+			}
+
+			#btn_save {
+				background: #22c55e;
+				color: white;
+				border: none;
+				border-radius: 10px;
+				padding: 10px 18px;
+				font-weight: 700;
+			}
+
+			#btn_save:hover {
+				background: #16a34a;
 			}
 		""")

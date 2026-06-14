@@ -610,7 +610,7 @@ class AdminDashboard(QWidget):
         btn_out.setStyleSheet(
             "QPushButton{background:transparent;color:#ef4444;border:1px solid #ef444430;"
             "border-radius:10px;font-weight:600;font-size:12px;margin:0 12px;}"
-            "QPushButton:hover{background:#ef444415;}"
+            "QPushButton:hover{background:red;}"
         )
         btn_out.clicked.connect(self.handle_logout)
         sb.addWidget(btn_out)
@@ -879,22 +879,28 @@ class AdminDashboard(QWidget):
                 day_res.sort(key=lambda x: x.get("jam_mulai", "00:00"))
                 
                 # -- ROOM STATUS SUMMARY --
+                from datetime import date
+                today_date = date.today()
+                
                 total_rooms = len(self.room_map)
-                c_dosen = 0
-                c_mhs = 0
+                c_terbooking = 0
+                c_terpakai = 0
+                
                 for r_id in self.room_map:
                     r_res = [r for r in day_res if str(r.get("ruangan_id")) == str(r_id)]
                     if r_res:
-                        if any((r.get("pengguna") or {}).get("role", "").lower() == "dosen" for r in r_res):
-                            c_dosen += 1
+                        # If date is in the future, it's 'Terbooking'. If today or past, it's 'Terpakai'.
+                        if dt > today_date:
+                            c_terbooking += 1
                         else:
-                            c_mhs += 1
-                c_tersedia = total_rooms - c_dosen - c_mhs
+                            c_terpakai += 1
+                
+                c_tersedia = total_rooms - c_terbooking - c_terpakai
                 
                 summary_html = (
                     f"<span style='color: #22c55e;'>●</span> {c_tersedia} &nbsp; "
-                    f"<span style='color: #f97316;'>●</span> {c_dosen} &nbsp; "
-                    f"<span style='color: #ef4444;'>●</span> {c_mhs}"
+                    f"<span style='color: #f97316;'>●</span> {c_terbooking} &nbsp; "
+                    f"<span style='color: #ef4444;'>●</span> {c_terpakai}"
                 )
                 summary_lbl = QLabel(summary_html)
                 summary_lbl.setStyleSheet("font-size: 11px; font-weight: 700; color: #94a3b8; padding-bottom: 4px; border: none; background: transparent;")

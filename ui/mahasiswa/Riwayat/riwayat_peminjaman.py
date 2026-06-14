@@ -485,10 +485,21 @@ class RiwayatPeminjamanPage(QWidget):
     # ==================================================================
 
     def _clear_cards(self):
+        if hasattr(self, 'anim_group') and self.anim_group is not None:
+            self.anim_group.stop()
+            self.anim_group.clear()
+            self.anim_group.deleteLater()
+            self.anim_group = None
+
         while self.list_layout.count() > 1:
             item = self.list_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            widget = item.widget()
+            if widget:
+                try:
+                    widget.setGraphicsEffect(None)
+                except RuntimeError:
+                    pass
+                widget.deleteLater()
 
     # ==================================================================
     # ANIMASI FADE-IN STAGGERED
@@ -502,13 +513,14 @@ class RiwayatPeminjamanPage(QWidget):
             if not isinstance(effect, QGraphicsOpacityEffect):
                 continue
 
-            anim = QPropertyAnimation(effect, b"opacity")
+            anim = QPropertyAnimation(effect, b"opacity", self.anim_group)
             anim.setDuration(300)
             anim.setStartValue(0.0)
             anim.setEndValue(1.0)
             anim.setEasingCurve(QEasingCurve.OutCubic)
 
             self.anim_group.addAnimation(anim)
-            self.anim_group.addAnimation(QPauseAnimation(50))
+            self.anim_group.addAnimation(QPauseAnimation(50, self.anim_group))
 
-        self.anim_group.start()
+        if self.anim_group.animationCount() > 0:
+            self.anim_group.start()

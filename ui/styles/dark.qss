@@ -1,4 +1,4 @@
-﻿/* ================================================
+/* ================================================
    ReservasiKampus  Dark Industrial Glass
    Palet: Deep Black + Teal Elektrik
    ================================================ */
@@ -709,3 +709,53 @@ QPushButton#NavBtn:checked { background-color: rgba(255,255,255,0.1); color: #ff
 #RoomCard:hover { border: 1px solid #818cf8; background-color: #1e293b; }
 QLabel.roomcard_title { color: #f1f5f9; font-size: 15px; font-weight: 800; background-color: transparent; }
 QLabel#CardMeta { color: #94a3b8; font-size: 11px; background-color: transparent; }
+
+/* Mahasiswa Dashboard */
+#btn_reservasi_baru {
+    background-color: #22c55e;
+    color: #052e16;
+    border: none;
+    border-radius: 10px;
+    padding: 0 20px;
+    font-weight: 800;
+    font-size: 13px;
+}
+
+#btn_reservasi_baru:hover {
+    background-color: #16a34a;
+}
+
+#page_title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #f1f5f9;
+    background-color: transparent;
+}
+
+#page_subtitle {
+    font-size: 14px;
+    color: #94a3b8;
+    background-color: transparent;
+}
+
+#stats_label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #8888a8;
+    letter-spacing: 0.8px;
+    background-color: transparent;
+}
+
+#section_title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #f1f5f9;
+    background-color: transparent;
+}
+
+#sidebar_logo {
+    color: #f1f5f9;
+    font-size: 18px;
+    font-weight: 800;
+    background-color: transparent;
+}

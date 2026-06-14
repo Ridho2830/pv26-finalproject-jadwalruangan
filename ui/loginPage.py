@@ -40,15 +40,7 @@ class LoginPage(QWidget):
                 background-color: #f9fafb;
                 color: #111827;
             }
-            QLineEdit:focus { border: 1px solid #6366f1; background-color: #ffffff; }
-            QPushButton#login_btn { 
-                background-color: #4338ca; 
-                color: white; 
-                border-radius: 8px; 
-                font-weight: bold;
-                padding: 10px;
-            }
-            QPushButton#login_btn:hover { background-color: #3730a3; }
+            QLineEdit:focus { border: 1px solid #00b8a9; background-color: #ffffff; }
             QPushButton#public_btn { 
                 background-color: white; 
                 color: #4b5563; 
@@ -171,7 +163,7 @@ class LoginPage(QWidget):
         
         forgot_btn = QPushButton("Lupa Password?")
         forgot_btn.setCursor(Qt.PointingHandCursor)
-        forgot_btn.setStyleSheet("color: #4f46e5; font-size: 13px; background: transparent; border: none; text-align: right;")
+        forgot_btn.setStyleSheet("color: #00b8a9; font-size: 13px; background: transparent; border: none; text-align: right;")
         
         options_layout.addWidget(remember_cb)
         options_layout.addStretch()
@@ -193,9 +185,20 @@ class LoginPage(QWidget):
         
         # Submit Button
         self.submit_btn = QPushButton("Masuk")
-        self.submit_btn.setObjectName("login_btn")
+        self.submit_btn.setObjectName("login_submit_btn_xyz")
         self.submit_btn.setCursor(Qt.PointingHandCursor)
         self.submit_btn.setFixedHeight(45)
+        self.submit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #00b8a9; 
+                color: white; 
+                border: none;
+                border-radius: 8px; 
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QPushButton:hover { background-color: #009f92; }
+        """)
         self.submit_btn.clicked.connect(self.handle_login)
         form_layout.addWidget(self.submit_btn)
         
