@@ -1,6 +1,10 @@
 # ui/mahasiswa/peminjaman/dialog_update_reservasi.py
 
-from PySide6.QtCore import Qt
+import os
+import uuid
+import mimetypes
+
+from PySide6.QtCore import Qt, QDate, QTime
 from PySide6.QtWidgets import (
 	QDialog,
 	QWidget,
@@ -14,13 +18,19 @@ from PySide6.QtWidgets import (
 	QMessageBox,
 	QDateEdit,
 	QTimeEdit,
+	QFileDialog,
+	QScrollArea,
+	QSizePolicy,
 )
 
-from PySide6.QtGui import QFont
-from PySide6.QtCore import QDate, QTime
+from PySide6.QtGui import QFont, QPixmap
 
 from api.supabase import get_supabase_client
 
+
+# ==============================================================
+# DIALOG UPDATE RESERVASI (dengan upload foto laporan)
+# ==============================================================
 
 class DialogUpdateReservasi(QDialog):
 	def __init__(
@@ -36,7 +46,10 @@ class DialogUpdateReservasi(QDialog):
 
 		self.supabase = get_supabase_client()
 
-		self.setWindowTitle("Update Reservasi")
+		# Menyimpan path file foto yang dipilih
+		self.foto_path: str | None = None
+
+		self.setWindowTitle("Edit Reservasi")
 		self.resize(720, 560)
 		self.setModal(True)
 
@@ -48,21 +61,37 @@ class DialogUpdateReservasi(QDialog):
 	# ==========================================================
 
 	def build_ui(self):
-		root = QVBoxLayout(self)
-		root.setContentsMargins(24, 24, 24, 24)
-		root.setSpacing(18)
+		# Layout utama dialog: scroll area + tombol di luar scroll
+		outer = QVBoxLayout(self)
+		outer.setContentsMargins(0, 0, 0, 16)
+		outer.setSpacing(0)
+
+		# Scroll area untuk semua konten
+		scroll = QScrollArea()
+		scroll.setWidgetResizable(True)
+		scroll.setFrameShape(QFrame.NoFrame)
+		scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+		content_widget = QWidget()
+		root = QVBoxLayout(content_widget)
+		root.setContentsMargins(24, 24, 24, 8)
+		root.setSpacing(14)
+
+		scroll.setWidget(content_widget)
+		outer.addWidget(scroll)
 
 		# ======================================================
 		# HEADER
 		# ======================================================
 
-		title = QLabel("Update Reservasi")
+		title = QLabel("✏️ Edit Reservasi")
 		title.setObjectName("dialog_title")
 
 		subtitle = QLabel(
-			"Ubah jadwal dan keperluan penggunaan ruangan."
+			"Ubah jadwal, keperluan, dan unggah foto laporan penggunaan ruangan."
 		)
 		subtitle.setObjectName("dialog_subtitle")
+		subtitle.setWordWrap(True)
 
 		root.addWidget(title)
 		root.addWidget(subtitle)
@@ -78,7 +107,7 @@ class DialogUpdateReservasi(QDialog):
 		warning_layout.setContentsMargins(14, 12, 14, 12)
 
 		warning_text = QLabel(
-			"Perubahan reservasi akan menunggu persetujuan ulang admin."
+			"⚠️  Perubahan reservasi akan menunggu persetujuan ulang admin."
 		)
 
 		warning_text.setObjectName("warning_text")
@@ -186,25 +215,172 @@ class DialogUpdateReservasi(QDialog):
 		root.addWidget(purpose_card)
 
 		# ======================================================
-		# BUTTON
+		# UPLOAD FOTO LAPORAN (hanya di edit)
 		# ======================================================
 
-		btn_row = QHBoxLayout()
+		foto_card = QFrame()
+		foto_card.setObjectName("section_card")
 
-		btn_row.addStretch()
+		foto_layout = QVBoxLayout(foto_card)
+		foto_layout.setSpacing(10)
+
+		foto_title = QLabel("4. Foto Laporan (Opsional)")
+		foto_title.setObjectName("section_title")
+
+		foto_desc = QLabel(
+			"Unggah foto kondisi ruangan setelah digunakan sebagai laporan."
+		)
+		foto_desc.setObjectName("foto_desc")
+		foto_desc.setWordWrap(True)
+
+		# Area preview foto
+		self.foto_preview = QLabel()
+		self.foto_preview.setObjectName("foto_preview")
+		self.foto_preview.setAlignment(Qt.AlignCenter)
+		self.foto_preview.setFixedHeight(120)
+		self.foto_preview.setWordWrap(True)
+		self.foto_preview.setSizePolicy(
+			QSizePolicy.Expanding, QSizePolicy.Fixed
+		)
+
+		# Cek apakah sudah ada foto sebelumnya
+		existing_foto = self.reservasi_data.get("foto_laporan")
+		if existing_foto:
+			self.foto_preview.setText("📷 Foto laporan sebelumnya sudah ada.\nPilih file baru untuk mengganti.")
+		else:
+			self.foto_preview.setText("📷 Belum ada foto.\nKlik tombol di bawah untuk memilih foto.")
+
+		# Baris tombol pilih / hapus
+		foto_btn_row = QHBoxLayout()
+
+		self.btn_pilih_foto = QPushButton("📁 Pilih Foto")
+		self.btn_pilih_foto.setObjectName("btn_foto")
+		self.btn_pilih_foto.clicked.connect(self._pilih_foto)
+
+		self.btn_hapus_foto = QPushButton("🗑 Hapus")
+		self.btn_hapus_foto.setObjectName("btn_hapus_foto")
+		self.btn_hapus_foto.clicked.connect(self._hapus_foto)
+		self.btn_hapus_foto.setVisible(False)
+
+		foto_btn_row.addWidget(self.btn_pilih_foto)
+		foto_btn_row.addWidget(self.btn_hapus_foto)
+		foto_btn_row.addStretch()
+
+		# Label nama file
+		self.foto_nama_lbl = QLabel("")
+		self.foto_nama_lbl.setObjectName("foto_nama")
+		self.foto_nama_lbl.setWordWrap(True)
+
+		foto_layout.addWidget(foto_title)
+		foto_layout.addWidget(foto_desc)
+		foto_layout.addWidget(self.foto_preview)
+		foto_layout.addLayout(foto_btn_row)
+		foto_layout.addWidget(self.foto_nama_lbl)
+
+		root.addWidget(foto_card)
+		root.addStretch()
+
+		# ======================================================
+		# BUTTON (di luar scroll area)
+		# ======================================================
+
+		btn_frame = QFrame()
+		btn_frame.setObjectName("btn_bar")
+		btn_layout = QHBoxLayout(btn_frame)
+		btn_layout.setContentsMargins(24, 8, 24, 0)
+
+		btn_layout.addStretch()
 
 		cancel_btn = QPushButton("Batal")
 		cancel_btn.setObjectName("btn_cancel")
 		cancel_btn.clicked.connect(self.reject)
 
-		save_btn = QPushButton("Simpan Perubahan")
+		save_btn = QPushButton("💾 Simpan Perubahan")
 		save_btn.setObjectName("btn_save")
 		save_btn.clicked.connect(self.update_reservasi)
 
-		btn_row.addWidget(cancel_btn)
-		btn_row.addWidget(save_btn)
+		btn_layout.addWidget(cancel_btn)
+		btn_layout.addWidget(save_btn)
 
-		root.addLayout(btn_row)
+		outer.addWidget(btn_frame)
+
+	# ==========================================================
+	# PILIH FOTO
+	# ==========================================================
+
+	def _pilih_foto(self):
+		file_path, _ = QFileDialog.getOpenFileName(
+			self,
+			"Pilih Foto Laporan",
+			"",
+			"Gambar (*.png *.jpg *.jpeg *.webp *.bmp)"
+		)
+
+		if not file_path:
+			return
+
+		self.foto_path = file_path
+		nama_file = os.path.basename(file_path)
+
+		# Tampilkan preview
+		pixmap = QPixmap(file_path)
+		if not pixmap.isNull():
+			pixmap = pixmap.scaled(
+				self.foto_preview.width(),
+				self.foto_preview.height(),
+				Qt.KeepAspectRatio,
+				Qt.SmoothTransformation,
+			)
+			self.foto_preview.setPixmap(pixmap)
+		else:
+			self.foto_preview.setText("⚠️ File tidak dapat ditampilkan.")
+
+		self.foto_nama_lbl.setText(f"📄 {nama_file}")
+		self.btn_hapus_foto.setVisible(True)
+
+	def _hapus_foto(self):
+		self.foto_path = None
+		self.foto_preview.setText("📷 Belum ada foto.\nKlik tombol di bawah untuk memilih foto.")
+		self.foto_preview.setPixmap(QPixmap())
+		self.foto_nama_lbl.setText("")
+		self.btn_hapus_foto.setVisible(False)
+
+	# ==========================================================
+	# UPLOAD FOTO KE SUPABASE STORAGE
+	# ==========================================================
+
+	def _upload_foto(self) -> str | None:
+		"""Upload foto ke Supabase Storage dan kembalikan URL publik-nya."""
+		if not self.foto_path:
+			return None
+
+		try:
+			ext = os.path.splitext(self.foto_path)[1].lower()
+			filename = f"laporan/{uuid.uuid4().hex}{ext}"
+			mime_type = mimetypes.guess_type(self.foto_path)[0] or "image/jpeg"
+
+			with open(self.foto_path, "rb") as f:
+				foto_bytes = f.read()
+
+			# Upload ke bucket "reservasi-foto" (sesuaikan nama bucket di Supabase)
+			result = self.supabase.storage.from_("reservasi-foto").upload(
+				filename,
+				foto_bytes,
+				{"content-type": mime_type, "upsert": "true"}
+			)
+
+			# Ambil public URL
+			public_url = self.supabase.storage.from_("reservasi-foto").get_public_url(filename)
+			return public_url
+
+		except Exception as e:
+			print(f"[Upload Foto] Error: {e}")
+			QMessageBox.warning(
+				self,
+				"Peringatan Upload",
+				f"Foto gagal diunggah, reservasi tetap disimpan tanpa foto.\n\nDetail: {e}"
+			)
+			return None
 
 	# ==========================================================
 	# UPDATE RESERVASI
@@ -239,21 +415,36 @@ class DialogUpdateReservasi(QDialog):
 			)
 			return
 
+		# Upload foto jika ada
+		foto_url = None
+		if self.foto_path:
+			foto_url = self._upload_foto()
+
 		try:
 			reservasi_id = self.reservasi_data.get("id")
 
-			self.supabase.table("reservasi").update({
+			payload = {
 				"tanggal": tanggal,
 				"jam_mulai": jam_mulai,
 				"jam_selesai": jam_selesai,
 				"keperluan": keperluan,
-				"status": "Pending"
-			}, f"id=eq.{reservasi_id}")
+				"status": "Pending",
+			}
+
+			# Tambahkan URL foto jika berhasil diupload
+			if foto_url:
+				payload["foto_laporan"] = foto_url
+
+			self.supabase.table("reservasi").update(
+				payload,
+				f"id=eq.{reservasi_id}"
+			)
 
 			QMessageBox.information(
 				self,
 				"Berhasil",
 				"Reservasi berhasil diperbarui."
+				+ ("\nFoto laporan berhasil diunggah." if foto_url else "")
 			)
 
 			self.accept()
@@ -311,7 +502,55 @@ class DialogUpdateReservasi(QDialog):
 			#section_title {
 				font-size: 16px;
 				font-weight: 700;
-				margin-bottom: 10px;
+				margin-bottom: 4px;
+			}
+
+			#foto_desc {
+				font-size: 12px;
+				color: #6b7280;
+				margin-bottom: 6px;
+			}
+
+			#foto_preview {
+				background: #f3f4f6;
+				border: 2px dashed #d1d5db;
+				border-radius: 12px;
+				color: #9ca3af;
+				font-size: 13px;
+				padding: 8px;
+			}
+
+			#foto_nombre {
+				font-size: 12px;
+				color: #374151;
+			}
+
+			#btn_foto {
+				background: #ede9fe;
+				color: #6d28d9;
+				border: 1px solid #c4b5fd;
+				border-radius: 10px;
+				padding: 8px 16px;
+				font-weight: 700;
+				font-size: 13px;
+			}
+
+			#btn_foto:hover {
+				background: #ddd6fe;
+			}
+
+			#btn_hapus_foto {
+				background: #fee2e2;
+				color: #991b1b;
+				border: 1px solid #fca5a5;
+				border-radius: 10px;
+				padding: 8px 16px;
+				font-weight: 700;
+				font-size: 13px;
+			}
+
+			#btn_hapus_foto:hover {
+				background: #fecaca;
 			}
 
 			QComboBox,
@@ -351,10 +590,14 @@ class DialogUpdateReservasi(QDialog):
 			}
 
 			#btn_save:hover {
-			background: #ea580c;
-		}
+				background: #ea580c;
+			}
 		""")
 
+
+# ==============================================================
+# DIALOG BUAT RESERVASI (tanpa upload foto)
+# ==============================================================
 
 class DialogBuatReservasi(QDialog):
 	"""Dialog untuk membuat reservasi baru dari sisi mahasiswa."""

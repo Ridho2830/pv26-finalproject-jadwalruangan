@@ -25,7 +25,7 @@ from PySide6.QtCore import (
     QSequentialAnimationGroup,
     QPauseAnimation,
 )
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtWidgets import (
     QWidget,
     QLabel,
@@ -214,7 +214,6 @@ class RiwayatPeminjamanPage(QWidget):
     # ==================================================================
 
     def refresh_data(self):
-        """Ambil semua riwayat dari Supabase lalu tampilkan."""
         self._clear_cards()
         self.semua_riwayat = []
 
@@ -222,21 +221,12 @@ class RiwayatPeminjamanPage(QWidget):
 
         try:
             result = supabase.table("reservasi").select(
-                query="*, ruangan(id, nama, gedung, lantai, kapasitas)",
-                filters=f"pengguna_id=eq.{self.pengguna_id}"
+                "*,ruangan(id,nama,gedung,lantai,kapasitas)",
+                f"pengguna_id=eq.{self.pengguna_id}&status=in.(Selesai,Ditolak,Dibatalkan)&order=tanggal.desc"
             )
 
-            if result:
-                # Simpan hanya yang berstatus final
-                self.semua_riwayat = [
-                    r for r in result
-                    if r.get("status") in STATUS_FINAL
-                ]
-                # Urutkan terbaru duluan berdasarkan tanggal
-                self.semua_riwayat.sort(
-                    key=lambda r: r.get("tanggal", ""),
-                    reverse=True
-                )
+            if isinstance(result, list):
+                self.semua_riwayat = result
 
         except Exception as e:
             print(f"[RiwayatPage] Error fetch data: {e}")
@@ -349,6 +339,7 @@ class RiwayatPeminjamanPage(QWidget):
         jam_selesai= reservasi.get("jam_selesai", "-")
         keperluan  = reservasi.get("keperluan", "-") or "-"
         status     = reservasi.get("status", "Selesai")
+        bukti_laporan = reservasi.get("bukti_laporan", "-")
 
         # Catatan admin bisa di kolom 'catatan_admin' atau 'catatan'
         catatan_admin = (
@@ -437,6 +428,88 @@ class RiwayatPeminjamanPage(QWidget):
 
             layout.addWidget(catatan_frame)
 
+        # ---- bukti laporan ----
+        bukti_frame = QFrame()
+
+        bukti_frame.setStyleSheet("""
+        QFrame{
+            background:white;
+            border:1px solid #E5E7EB;
+            border-radius:16px;
+        }
+        """)
+
+        bukti_layout = QVBoxLayout(bukti_frame)
+        bukti_layout.setContentsMargins(12, 12, 12, 12)
+
+        judul = QLabel("📷 Bukti Laporan")
+        judul.setStyleSheet("""
+        QLabel{
+            font-size:15px;
+            font-weight:700;
+            color:#111827;
+            padding-bottom:8px;
+            background:transparent;
+        }
+        """)
+        bukti_layout.addWidget(judul)
+
+        gambar = QLabel()
+        gambar.setAlignment(Qt.AlignCenter)
+        gambar.setMinimumHeight(240)
+
+        if bukti_laporan and bukti_laporan != "-":
+            pixmap = QPixmap(bukti_laporan)
+
+            if not pixmap.isNull():
+                gambar.setPixmap(
+                    pixmap.scaled(
+                        520,
+                        300,
+                        Qt.KeepAspectRatio,
+                        Qt.SmoothTransformation
+                    )
+                )
+
+                gambar.setStyleSheet("""
+                QLabel{
+                    background:white;
+                    border:1px solid #E5E7EB;
+                    border-radius:14px;
+                    padding:10px;
+                }
+                """)
+            else:
+                gambar.setText("🖼\n\nFoto tidak dapat dibuka")
+                gambar.setStyleSheet("""
+                QLabel{
+                    background:#F9FAFB;
+                    border:2px dashed #CBD5E1;
+                    border-radius:14px;
+                    color:#6B7280;
+                    font-size:15px;
+                    font-weight:600;
+                }
+                """)
+                gambar.setFixedHeight(120)
+        else:
+            gambar.setText("📷\n\nBelum ada foto laporan")
+            gambar.setStyleSheet("""
+            QLabel{
+                background:#F9FAFB;
+                border:2px dashed #CBD5E1;
+                border-radius:14px;
+                color:#94A3B8;
+                font-size:16px;
+                font-weight:600;
+            }
+            """)
+            gambar.setFixedHeight(120)
+
+        bukti_layout.addWidget(gambar)
+
+        layout.addWidget(bukti_frame)
+        
         # ---- opacity effect untuk animasi ----
         effect = QGraphicsOpacityEffect(card)
         effect.setOpacity(0.0)

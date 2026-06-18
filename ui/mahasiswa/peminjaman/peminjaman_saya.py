@@ -64,7 +64,6 @@ class PeminjamanSayaPage(QWidget):
         self.anim_group = None
 
         self._build_ui()
-        self._load_styles()
         self.refresh_data()
 
     # ==============================================================
@@ -87,12 +86,21 @@ class PeminjamanSayaPage(QWidget):
         title_col.setSpacing(2)
 
         title_lbl = QLabel("Peminjaman Saya")
-        title_lbl.setObjectName("page_title")
+        title_lbl.setStyleSheet("""
+            font-size:30px;
+            font-weight:700;
+            color:#111827;
+            background:transparent;
+            """)
 
         subtitle_lbl = QLabel(
             f"Riwayat dan status reservasi ruangan atas nama {self.pengguna_nama}."
         )
-        subtitle_lbl.setObjectName("page_subtitle")
+        subtitle_lbl.setStyleSheet("""
+            font-size:14px;
+            color:#6B7280;
+            background:transparent;
+            """)
 
         title_col.addWidget(title_lbl)
         title_col.addWidget(subtitle_lbl)
@@ -113,7 +121,12 @@ class PeminjamanSayaPage(QWidget):
         # STATS
         # ==========================================================
         self.stats_lbl = QLabel("Memuat data...")
-        self.stats_lbl.setObjectName("stats_label")
+        self.stats_lbl.setStyleSheet("""
+            font-size:15px;
+            font-weight:600;
+            color:#475569;
+            background:transparent;
+            """)
 
         root.addWidget(self.stats_lbl)
 
@@ -121,20 +134,35 @@ class PeminjamanSayaPage(QWidget):
         # WARNING CARD
         # ==========================================================
         warning_card = QFrame()
-        warning_card.setObjectName("warning_card")
+        warning_card.setStyleSheet("""
+            QFrame{
+                background:#FEF3C7;
+                border:1px solid #FCD34D;
+                border-radius:16px;
+            }
+            """)
 
         warning_layout = QHBoxLayout(warning_card)
+        
         warning_layout.setContentsMargins(18, 16, 18, 16)
         warning_layout.setSpacing(12)
 
         warning_icon = QLabel("⚠️")
-        warning_icon.setObjectName("warning_icon")
+        warning_icon.setStyleSheet("""
+            font-size:22px;
+            background:transparent;
+            """)
 
         warning_text = QLabel(
             "Reservasi dapat dibatalkan admin apabila ruangan digunakan "
             "untuk kegiatan resmi kampus."
         )
-        warning_text.setObjectName("warning_text")
+        warning_text.setStyleSheet("""
+            font-size:14px;
+            color:#92400E;
+            background:transparent;
+            """)
+
         warning_text.setWordWrap(True)
 
         warning_layout.addWidget(warning_icon)
@@ -335,7 +363,16 @@ class PeminjamanSayaPage(QWidget):
 
     def _build_card(self, reservasi, index):
         card = QFrame()
-        card.setObjectName("reservasi_card")
+        card.setStyleSheet("""
+            QFrame{
+                background:white;
+                border:1px solid #E5E7EB;
+                border-radius:18px;
+            }
+            QFrame:hover{
+                border:1px solid #3B82F6;
+            }
+            """)
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -361,7 +398,12 @@ class PeminjamanSayaPage(QWidget):
         header = QHBoxLayout()
 
         room_lbl = QLabel(nama_ruangan)
-        room_lbl.setObjectName("card_room_name")
+        room_lbl.setStyleSheet("""
+            font-size:20px;
+            font-weight:700;
+            color:#111827;
+            background:transparent;
+            """)
 
         status_bg, status_text, status_icon = STATUS_STYLE.get(
             status,
@@ -393,8 +435,14 @@ class PeminjamanSayaPage(QWidget):
             f"📅 {tanggal}\n"
             f"🕒 {jam_mulai} - {jam_selesai}"
         )
-
-        detail_lbl.setObjectName("card_detail")
+        
+        detail_lbl.setTextFormat(Qt.RichText)
+        detail_lbl.setWordWrap(True)
+        detail_lbl.setStyleSheet("""
+            font-size:14px;
+            color:#374151;
+            background:transparent;
+            """)
 
         layout.addWidget(detail_lbl)
 
@@ -405,9 +453,20 @@ class PeminjamanSayaPage(QWidget):
         keperluan_lbl = QLabel(
             f"Keperluan:\n{keperluan}"
         )
+        
+        keperluan_lbl.setTextFormat(Qt.RichText)
+        keperluan_lbl.setWordWrap(True)
+
+        keperluan_lbl.setStyleSheet("""
+            background:#F9FAFB;
+            border:1px solid #E5E7EB;
+            border-radius:12px;
+            padding:12px;
+            font-size:14px;
+            color:#374151;
+            """)
 
         keperluan_lbl.setWordWrap(True)
-        keperluan_lbl.setObjectName("card_keperluan")
 
         layout.addWidget(keperluan_lbl)
 
@@ -415,27 +474,81 @@ class PeminjamanSayaPage(QWidget):
         # BUTTON
         # ==========================================================
 
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
+        if status == "Pending":
+            btn_row = QHBoxLayout()
+            btn_row.addStretch()
 
-        edit_btn = QPushButton("Ubah")
-        edit_btn.setObjectName("btn_edit")
+            cancel_btn = QPushButton("Batalkan")
+            cancel_btn.setStyleSheet("""
+            QPushButton{
+                background:#EF4444;
+                color:white;
+                border:none;
+                border-radius:10px;
+                padding:8px 20px;
+                font-weight:600;
+            }
+            QPushButton:hover{
+                background:#DC2626;
+            }
+            """)
+            cancel_btn.setObjectName("btn_cancel")
 
-        cancel_btn = QPushButton("Batalkan")
-        cancel_btn.setObjectName("btn_cancel")
+            cancel_btn.clicked.connect(
+                partial(self._on_batal_clicked, index)
+            )
+            btn_row.addWidget(cancel_btn)
 
-        edit_btn.clicked.connect(
-            partial(self._on_ubah_clicked, index)
-        )
+            layout.addLayout(btn_row)
+            
+        if status == "Disetujui":
+            btn_row = QHBoxLayout()
+            btn_row.addStretch()
 
-        cancel_btn.clicked.connect(
-            partial(self._on_batal_clicked, index)
-        )
+            edit_btn = QPushButton("Ubah")
+            edit_btn.setStyleSheet("""
+                QPushButton{
+                    background:#2563EB;
+                    color:white;
+                    border:none;
+                    border-radius:10px;
+                    padding:8px 20px;
+                    font-weight:600;
+                }
+                QPushButton:hover{
+                    background:#1D4ED8;
+                }
+                """)
+            edit_btn.setObjectName("btn_edit")
 
-        btn_row.addWidget(edit_btn)
-        btn_row.addWidget(cancel_btn)
+            cancel_btn = QPushButton("Batalkan")
+            cancel_btn.setStyleSheet("""
+            QPushButton{
+                background:#EF4444;
+                color:white;
+                border:none;
+                border-radius:10px;
+                padding:8px 20px;
+                font-weight:600;
+            }
+            QPushButton:hover{
+                background:#DC2626;
+            }
+            """)
+            cancel_btn.setObjectName("btn_cancel")
 
-        layout.addLayout(btn_row)
+            edit_btn.clicked.connect(
+                partial(self._on_ubah_clicked, index)
+            )
+
+            cancel_btn.clicked.connect(
+                partial(self._on_batal_clicked, index)
+            )
+
+            btn_row.addWidget(edit_btn)
+            btn_row.addWidget(cancel_btn)
+
+            layout.addLayout(btn_row)
 
         # ==========================================================
         # ANIMASI
@@ -487,160 +600,4 @@ class PeminjamanSayaPage(QWidget):
 
         if self.anim_group.animationCount() > 0:
             self.anim_group.start()
-
-    # ==============================================================
-    # STYLE
-    # ==============================================================
-
-    def _load_styles(self):
-        self.setStyleSheet("""
-            QWidget {
-                background: #f8f7fb;
-                color: #1d1b20;
-                font-family: 'DM Sans';
-            }
-
-            #page_title {
-                font-size: 34px;
-                font-weight: 700;
-                color: #1f172a;
-            }
-
-            #page_subtitle {
-                font-size: 14px;
-                color: #6b7280;
-            }
-
-            #stats_label {
-                font-size: 13px;
-                font-weight: 600;
-                color: #4f378a;
-            }
-
-            #btn_refresh {
-                background: #4f378a;
-                color: white;
-                border: none;
-                border-radius: 12px;
-                font-size: 13px;
-                font-weight: 700;
-                padding: 0 18px;
-            }
-
-            #btn_refresh:hover {
-                background: #5b41a1;
-            }
-
-            #warning_card {
-                background: #fff8db;
-                border-left: 4px solid #eab308;
-                border-radius: 14px;
-            }
-
-            #warning_icon {
-                font-size: 22px;
-                background: transparent;
-            }
-
-            #warning_text {
-                background: transparent;
-                color: #92400e;
-                font-size: 14px;
-                line-height: 22px;
-            }
-
-            QFrame#reservasi_card {
-                background: white;
-                border-radius: 18px;
-                border: 1px solid #ece6ee;
-            }
-
-            QFrame#reservasi_card:hover {
-                border: 1px solid #c4b5fd;
-                background: #fcfbff;
-            }
-
-            #card_room_name {
-                font-size: 18px;
-                font-weight: 700;
-                color: #111827;
-                background: transparent;
-            }
-
-            #card_detail {
-                font-size: 13px;
-                color: #6b7280;
-                background: transparent;
-            }
-
-            #card_keperluan {
-                font-size: 13px;
-                color: #374151;
-                line-height: 22px;
-                background: transparent;
-            }
-
-            #btn_edit {
-                background: white;
-                color: #111827;
-                border: 1px solid #d1d5db;
-                border-radius: 10px;
-                font-size: 13px;
-                font-weight: 700;
-                padding: 0 18px;
-            }
-
-            #btn_edit:hover {
-                background: #f9fafb;
-            }
-
-            #btn_cancel {
-                background: white;
-                color: #dc2626;
-                border: 1px solid #ef4444;
-                border-radius: 10px;
-                font-size: 13px;
-                font-weight: 700;
-                padding: 0 18px;
-            }
-
-            #btn_cancel:hover {
-                background: #fef2f2;
-            }
-
-            #detail_panel {
-                background: white;
-                border-radius: 20px;
-                border: 1px solid #e5e7eb;
-            }
-
-            #detail_title {
-                font-size: 24px;
-                font-weight: 700;
-                color: #111827;
-                background: transparent;
-            }
-
-            #detail_content {
-                background: transparent;
-                font-size: 14px;
-                color: #1f2937;
-                line-height: 24px;
-            }
-
-            QScrollArea {
-                border: none;
-                background: transparent;
-            }
-
-            QScrollBar:vertical {
-                width: 10px;
-                background: transparent;
-            }
-
-            QScrollBar::handle:vertical {
-                background: #d1d5db;
-                border-radius: 5px;
-                min-height: 40px;
-            }
-        """)
+            
