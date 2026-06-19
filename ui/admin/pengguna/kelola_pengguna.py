@@ -3,7 +3,6 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                 QPushButton, QTableWidget, QTableWidgetItem, 
                                 QHeaderView, QMessageBox, QDialog, QLineEdit, 
                                 QComboBox, QFrame, QAbstractItemView, QCheckBox)
-from PySide6.QtGui import QColor
 from utils.mode import theme_manager
 from api.supabase import get_supabase_client
 import bcrypt
@@ -41,6 +40,7 @@ class KelolaPenggunaWidget(QWidget):
         
         # User Data Table
         self.table = QTableWidget()
+        self.table.setStyleSheet("QTableWidget { border: none; background: transparent; }")
         self.table.setColumnCount(6)
         self.table.setHorizontalHeaderLabels([
             "Nama Lengkap", "Username", "Role", "NIM/NIP", "Status", "Aksi"
@@ -72,7 +72,13 @@ class KelolaPenggunaWidget(QWidget):
         
         self.table.verticalHeader().setDefaultSectionSize(60) # Taller rows for premium feel
         
-        self.main_layout.addWidget(self.table)
+        self.table_container = QFrame()
+        
+        container_layout = QVBoxLayout(self.table_container)
+        container_layout.setContentsMargins(0,0,0,0)
+        container_layout.addWidget(self.table)
+        
+        self.main_layout.addWidget(self.table_container)
 
     def refresh_data(self):
         """Memuat ulang semua data pengguna dari database Supabase dan memasukkannya ke tabel."""
@@ -90,6 +96,8 @@ class KelolaPenggunaWidget(QWidget):
             
             for row_idx, user in enumerate(users_data):
                 self.table.insertRow(row_idx)
+                for c in range(self.table.columnCount()):
+                    self.table.setItem(row_idx, c, QTableWidgetItem())
                 
                 # Column data
                 # Kolom 0: Nama (Bold)
@@ -163,16 +171,16 @@ class KelolaPenggunaWidget(QWidget):
         actions_layout.setContentsMargins(6, 2, 6, 2)
         actions_layout.setSpacing(8)
         
-        edit_btn = QPushButton("Edit")
+        edit_btn = QPushButton("✏️ Edit")
         edit_btn.setCursor(Qt.PointingHandCursor)
-        edit_btn.setObjectName("edit_action_btn")
-        edit_btn.setFixedHeight(24)
+        edit_btn.setStyleSheet("QPushButton { background-color: #f59e0b; color: white; border-radius: 6px; font-weight: bold; } QPushButton:hover { background-color: #d97706; }")
+        edit_btn.setFixedHeight(28)
         edit_btn.clicked.connect(lambda _, u=user: self.edit_user(u))
         
-        delete_btn = QPushButton("Hapus")
+        delete_btn = QPushButton("🗑️ Hapus")
         delete_btn.setCursor(Qt.PointingHandCursor)
-        delete_btn.setObjectName("delete_action_btn")
-        delete_btn.setFixedHeight(24)
+        delete_btn.setStyleSheet("QPushButton { background-color: #ef4444; color: white; border-radius: 6px; font-weight: bold; } QPushButton:hover { background-color: #dc2626; }")
+        delete_btn.setFixedHeight(28)
         delete_btn.clicked.connect(lambda _, u=user: self.delete_user(u))
         
         actions_layout.addWidget(edit_btn)

@@ -12,9 +12,8 @@ from PySide6.QtWidgets import (
     QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QDialog, QLineEdit,
     QComboBox, QFrame, QAbstractItemView, QDateEdit,
-    QTimeEdit, QButtonGroup, QSizePolicy
+    QTimeEdit
 )
-from PySide6.QtGui import QColor
 from utils.mode import theme_manager
 from api.supabase import get_supabase_client
 
@@ -128,6 +127,7 @@ class KelolaReservasiWidget(QWidget):
 
     def _build_table(self):
         self.table = QTableWidget()
+        self.table.setStyleSheet("QTableWidget { border: none; background: transparent; }")
         self.table.setColumnCount(9)
         self.table.setHorizontalHeaderLabels([
             "Nama Peminjam", "Role", "Ruangan", "Tanggal",
@@ -164,7 +164,13 @@ class KelolaReservasiWidget(QWidget):
 
         self.table.verticalHeader().setDefaultSectionSize(56)
 
-        self.main_layout.addWidget(self.table)
+        self.table_container = QFrame()
+
+        container_layout = QVBoxLayout(self.table_container)
+        container_layout.setContentsMargins(0,0,0,0)
+        container_layout.addWidget(self.table)
+        
+        self.main_layout.addWidget(self.table_container)
 
     # ─── FILTER LOGIC ────────────────────────────
     def _on_filter(self, label: str):
@@ -215,6 +221,8 @@ class KelolaReservasiWidget(QWidget):
 
             for row_idx, reservasi in enumerate(result):
                 self.table.insertRow(row_idx)
+                for c in range(self.table.columnCount()):
+                    self.table.setItem(row_idx, c, QTableWidgetItem())
                 self._populate_row(row_idx, reservasi)
 
         except Exception as e:
@@ -334,17 +342,17 @@ class KelolaReservasiWidget(QWidget):
             actions_l.addWidget(btn_reject)
 
         # Edit & Hapus selalu ada
-        btn_edit = QPushButton("Edit")
+        btn_edit = QPushButton("✏️ Edit")
         btn_edit.setCursor(Qt.PointingHandCursor)
-        btn_edit.setObjectName("edit_action_btn")
+        btn_edit.setStyleSheet("QPushButton { background-color: #f59e0b; color: white; border-radius: 6px; font-weight: bold; padding: 2px 10px; font-size: 11px; } QPushButton:hover { background-color: #d97706; }")
         btn_edit.setFixedHeight(26)
         btn_edit.clicked.connect(
             lambda _, r=reservasi: self.edit_reservasi(r))
         actions_l.addWidget(btn_edit)
 
-        btn_delete = QPushButton("Hapus")
+        btn_delete = QPushButton("🗑️ Hapus")
         btn_delete.setCursor(Qt.PointingHandCursor)
-        btn_delete.setObjectName("delete_action_btn")
+        btn_delete.setStyleSheet("QPushButton { background-color: #ef4444; color: white; border-radius: 6px; font-weight: bold; padding: 2px 10px; font-size: 11px; } QPushButton:hover { background-color: #dc2626; }")
         btn_delete.setFixedHeight(26)
         btn_delete.clicked.connect(
             lambda _, r=reservasi: self.delete_reservasi(r))

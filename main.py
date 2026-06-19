@@ -1,11 +1,9 @@
 import sys
 from PySide6.QtWidgets import QApplication, QStackedWidget
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QScreen
 from ui.index import StatusRuanganView
-from ui.loginPage import LoginPage
+from ui.login_page import LoginPage
 from ui.admin.dashboard import AdminDashboard
-from ui.mahasiswa.dashboard_mahasiswa import MahasiswaPage
+from ui.mahasiswa.dashboard import MahasiswaPage
 
 class MainWindow(QStackedWidget):
     def __init__(self):

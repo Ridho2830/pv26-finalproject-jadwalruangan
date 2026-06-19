@@ -1,4 +1,4 @@
-# ui/mahasiswa/peminjaman/dialog_update_reservasi.py
+# ui/mahasiswa/peminjaman/dialog_reservasi.py
 
 import os
 import uuid
@@ -23,9 +23,10 @@ from PySide6.QtWidgets import (
 	QSizePolicy,
 )
 
-from PySide6.QtGui import QFont, QPixmap
+from PySide6.QtGui import QPixmap
 
 from api.supabase import get_supabase_client
+from utils.mode import theme_manager
 
 
 # ==============================================================
@@ -54,7 +55,8 @@ class DialogUpdateReservasi(QDialog):
 		self.setModal(True)
 
 		self.build_ui()
-		self.load_styles()
+		self.apply_theme()
+		theme_manager.theme_changed.connect(self.apply_theme)
 
 	# ==========================================================
 	# UI
@@ -85,12 +87,12 @@ class DialogUpdateReservasi(QDialog):
 		# ======================================================
 
 		title = QLabel("✏️ Edit Reservasi")
-		title.setObjectName("dialog_title")
+		title.setObjectName("page_title")
 
 		subtitle = QLabel(
 			"Ubah jadwal, keperluan, dan unggah foto laporan penggunaan ruangan."
 		)
-		subtitle.setObjectName("dialog_subtitle")
+		subtitle.setObjectName("page_subtitle")
 		subtitle.setWordWrap(True)
 
 		root.addWidget(title)
@@ -101,7 +103,7 @@ class DialogUpdateReservasi(QDialog):
 		# ======================================================
 
 		warning = QFrame()
-		warning.setObjectName("warning_card")
+		warning.setObjectName("WarnBanner")
 
 		warning_layout = QHBoxLayout(warning)
 		warning_layout.setContentsMargins(14, 12, 14, 12)
@@ -110,7 +112,7 @@ class DialogUpdateReservasi(QDialog):
 			"⚠️  Perubahan reservasi akan menunggu persetujuan ulang admin."
 		)
 
-		warning_text.setObjectName("warning_text")
+		warning_text.setObjectName("WarnText")
 
 		warning_layout.addWidget(warning_text)
 
@@ -121,12 +123,12 @@ class DialogUpdateReservasi(QDialog):
 		# ======================================================
 
 		room_card = QFrame()
-		room_card.setObjectName("section_card")
+		room_card.setObjectName("RoomCard")
 
 		room_layout = QVBoxLayout(room_card)
 
 		room_title = QLabel("1. Pilih Ruangan")
-		room_title.setObjectName("section_title")
+		room_title.setObjectName("SectionTitle")
 
 		self.room_combo = QComboBox()
 
@@ -146,12 +148,12 @@ class DialogUpdateReservasi(QDialog):
 		# ======================================================
 
 		time_card = QFrame()
-		time_card.setObjectName("section_card")
+		time_card.setObjectName("RoomCard")
 
 		time_layout = QVBoxLayout(time_card)
 
 		time_title = QLabel("2. Pilih Waktu")
-		time_title.setObjectName("section_title")
+		time_title.setObjectName("SectionTitle")
 
 		row = QHBoxLayout()
 
@@ -192,12 +194,12 @@ class DialogUpdateReservasi(QDialog):
 		# ======================================================
 
 		purpose_card = QFrame()
-		purpose_card.setObjectName("section_card")
+		purpose_card.setObjectName("RoomCard")
 
 		purpose_layout = QVBoxLayout(purpose_card)
 
 		purpose_title = QLabel("3. Keperluan")
-		purpose_title.setObjectName("section_title")
+		purpose_title.setObjectName("SectionTitle")
 
 		self.keperluan_input = QTextEdit()
 
@@ -219,13 +221,13 @@ class DialogUpdateReservasi(QDialog):
 		# ======================================================
 
 		foto_card = QFrame()
-		foto_card.setObjectName("section_card")
+		foto_card.setObjectName("RoomCard")
 
 		foto_layout = QVBoxLayout(foto_card)
 		foto_layout.setSpacing(10)
 
 		foto_title = QLabel("4. Foto Laporan (Opsional)")
-		foto_title.setObjectName("section_title")
+		foto_title.setObjectName("SectionTitle")
 
 		foto_desc = QLabel(
 			"Unggah foto kondisi ruangan setelah digunakan sebagai laporan."
@@ -292,7 +294,7 @@ class DialogUpdateReservasi(QDialog):
 		btn_layout.addStretch()
 
 		cancel_btn = QPushButton("Batal")
-		cancel_btn.setObjectName("btn_cancel")
+		cancel_btn.setObjectName("cancel_btn")
 		cancel_btn.clicked.connect(self.reject)
 
 		save_btn = QPushButton("💾 Simpan Perubahan")
@@ -460,139 +462,49 @@ class DialogUpdateReservasi(QDialog):
 	# STYLE
 	# ==========================================================
 
-	def load_styles(self):
-		self.setStyleSheet("""
-			QDialog {
-				background: #f7f7fb;
-				font-family: 'DM Sans';
-				color: #1f2937;
-			}
-
-			#dialog_title {
-				font-size: 28px;
-				font-weight: 700;
-				color: #111827;
-			}
-
-			#dialog_subtitle {
-				font-size: 14px;
-				color: #6b7280;
-				margin-bottom: 8px;
-			}
-
-			#warning_card {
-				background: #fff7ed;
-				border: 1px solid #fdba74;
-				border-radius: 12px;
-			}
-
-			#warning_text {
-				color: #c2410c;
-				font-size: 13px;
-				font-weight: 600;
-			}
-
-			#section_card {
-				background: white;
-				border: 1px solid #ece6ee;
-				border-radius: 16px;
-				padding: 8px;
-			}
-
-			#section_title {
-				font-size: 16px;
-				font-weight: 700;
-				margin-bottom: 4px;
-			}
-
-			#foto_desc {
-				font-size: 12px;
-				color: #6b7280;
-				margin-bottom: 6px;
-			}
-
-			#foto_preview {
-				background: #f3f4f6;
-				border: 2px dashed #d1d5db;
-				border-radius: 12px;
-				color: #9ca3af;
-				font-size: 13px;
-				padding: 8px;
-			}
-
-			#foto_nombre {
-				font-size: 12px;
-				color: #374151;
-			}
-
-			#btn_foto {
-				background: #ede9fe;
-				color: #6d28d9;
-				border: 1px solid #c4b5fd;
-				border-radius: 10px;
-				padding: 8px 16px;
-				font-weight: 700;
-				font-size: 13px;
-			}
-
-			#btn_foto:hover {
-				background: #ddd6fe;
-			}
-
-			#btn_hapus_foto {
-				background: #fee2e2;
-				color: #991b1b;
-				border: 1px solid #fca5a5;
-				border-radius: 10px;
-				padding: 8px 16px;
-				font-weight: 700;
-				font-size: 13px;
-			}
-
-			#btn_hapus_foto:hover {
-				background: #fecaca;
-			}
-
-			QComboBox,
-			QDateEdit,
-			QTimeEdit,
-			QTextEdit {
-				border: 1px solid #d1d5db;
-				border-radius: 10px;
-				padding: 10px;
-				background: white;
-				font-size: 13px;
-			}
-
-			QTextEdit {
-				min-height: 100px;
-			}
-
-			#btn_cancel {
-				background: white;
-				border: 1px solid #d1d5db;
-				border-radius: 10px;
-				padding: 10px 18px;
-				font-weight: 700;
-			}
-
-			#btn_cancel:hover {
-				background: #f3f4f6;
-			}
-
-			#btn_save {
-				background: #f97316;
-				color: white;
-				border: none;
-				border-radius: 10px;
-				padding: 10px 18px;
-				font-weight: 700;
-			}
-
-			#btn_save:hover {
-				background: #ea580c;
-			}
-		""")
+	def apply_theme(self):
+		base_style = theme_manager.get_stylesheet()
+		is_dark = theme_manager.is_dark
+		dialog_style = f"""
+		#btn_save {{
+			background: {'#ea580c' if is_dark else '#f97316'};
+			color: white;
+			border: none;
+			border-radius: 10px;
+			padding: 10px 18px;
+			font-weight: 700;
+		}}
+		#btn_save:hover {{
+			background: {'#c2410c' if is_dark else '#ea580c'};
+		}}
+		#btn_foto {{
+			background: {'#4c1d95' if is_dark else '#ede9fe'};
+			color: {'#ddd6fe' if is_dark else '#6d28d9'};
+			border: 1px solid {'#6d28d9' if is_dark else '#c4b5fd'};
+			border-radius: 10px;
+			padding: 8px 16px;
+			font-weight: 700;
+			font-size: 13px;
+		}}
+		#btn_hapus_foto {{
+			background: {'#7f1d1d' if is_dark else '#fee2e2'};
+			color: {'#fecaca' if is_dark else '#991b1b'};
+			border: 1px solid {'#991b1b' if is_dark else '#fca5a5'};
+			border-radius: 10px;
+			padding: 8px 16px;
+			font-weight: 700;
+			font-size: 13px;
+		}}
+		#foto_preview {{
+			background: {'#1f2937' if is_dark else '#f3f4f6'};
+			border: 2px dashed {'#4b5563' if is_dark else '#d1d5db'};
+			border-radius: 12px;
+			color: {'#9ca3af' if is_dark else '#9ca3af'};
+			font-size: 13px;
+			padding: 8px;
+		}}
+		"""
+		self.setStyleSheet(base_style + dialog_style)
 
 
 # ==============================================================
@@ -616,7 +528,8 @@ class DialogBuatReservasi(QDialog):
 
 		self._load_rooms()
 		self._build_ui()
-		self._load_styles()
+		self.apply_theme()
+		theme_manager.theme_changed.connect(self.apply_theme)
 
 	# ==========================================================
 	# LOAD DATA
@@ -646,19 +559,19 @@ class DialogBuatReservasi(QDialog):
 
 		# HEADER
 		title = QLabel("📅 Buat Reservasi Baru")
-		title.setObjectName("dialog_title")
+		title.setObjectName("page_title")
 
 		subtitle = QLabel(
 			"Pilih ruangan, waktu, dan keperluan untuk membuat reservasi."
 		)
-		subtitle.setObjectName("dialog_subtitle")
+		subtitle.setObjectName("page_subtitle")
 
 		root.addWidget(title)
 		root.addWidget(subtitle)
 
 		# INFO
 		info_card = QFrame()
-		info_card.setObjectName("warning_card")
+		info_card.setObjectName("WarnBanner")
 
 		info_layout = QHBoxLayout(info_card)
 		info_layout.setContentsMargins(14, 12, 14, 12)
@@ -666,7 +579,7 @@ class DialogBuatReservasi(QDialog):
 		info_text = QLabel(
 			"Reservasi akan berstatus Pending hingga disetujui oleh admin."
 		)
-		info_text.setObjectName("warning_text")
+		info_text.setObjectName("WarnText")
 		info_text.setWordWrap(True)
 
 		info_layout.addWidget(info_text)
@@ -675,12 +588,12 @@ class DialogBuatReservasi(QDialog):
 
 		# 1. PILIH RUANGAN
 		room_card = QFrame()
-		room_card.setObjectName("section_card")
+		room_card.setObjectName("RoomCard")
 
 		room_layout = QVBoxLayout(room_card)
 
 		room_title = QLabel("1. Pilih Ruangan")
-		room_title.setObjectName("section_title")
+		room_title.setObjectName("SectionTitle")
 
 		self.room_combo = QComboBox()
 		self.room_combo.setFixedHeight(40)
@@ -708,12 +621,12 @@ class DialogBuatReservasi(QDialog):
 
 		# 2. PILIH WAKTU
 		time_card = QFrame()
-		time_card.setObjectName("section_card")
+		time_card.setObjectName("RoomCard")
 
 		time_layout = QVBoxLayout(time_card)
 
 		time_title = QLabel("2. Pilih Waktu")
-		time_title.setObjectName("section_title")
+		time_title.setObjectName("SectionTitle")
 
 		row = QHBoxLayout()
 
@@ -741,12 +654,12 @@ class DialogBuatReservasi(QDialog):
 
 		# 3. KEPERLUAN
 		purpose_card = QFrame()
-		purpose_card.setObjectName("section_card")
+		purpose_card.setObjectName("RoomCard")
 
 		purpose_layout = QVBoxLayout(purpose_card)
 
 		purpose_title = QLabel("3. Keperluan")
-		purpose_title.setObjectName("section_title")
+		purpose_title.setObjectName("SectionTitle")
 
 		self.keperluan_input = QTextEdit()
 		self.keperluan_input.setPlaceholderText(
@@ -764,7 +677,7 @@ class DialogBuatReservasi(QDialog):
 		btn_row.addStretch()
 
 		cancel_btn = QPushButton("Batal")
-		cancel_btn.setObjectName("btn_cancel")
+		cancel_btn.setObjectName("cancel_btn")
 		cancel_btn.clicked.connect(self.reject)
 
 		submit_btn = QPushButton("📨 Ajukan Reservasi")
@@ -854,88 +767,20 @@ class DialogBuatReservasi(QDialog):
 	# STYLE
 	# ==========================================================
 
-	def _load_styles(self):
-		self.setStyleSheet("""
-			QDialog {
-				background: #f7f7fb;
-				font-family: 'DM Sans';
-				color: #1f2937;
-			}
-
-			#dialog_title {
-				font-size: 28px;
-				font-weight: 700;
-				color: #111827;
-			}
-
-			#dialog_subtitle {
-				font-size: 14px;
-				color: #6b7280;
-				margin-bottom: 8px;
-			}
-
-			#warning_card {
-				background: #fff7ed;
-				border: 1px solid #fdba74;
-				border-radius: 12px;
-			}
-
-			#warning_text {
-				color: #c2410c;
-				font-size: 13px;
-				font-weight: 600;
-			}
-
-			#section_card {
-				background: white;
-				border: 1px solid #ece6ee;
-				border-radius: 16px;
-				padding: 8px;
-			}
-
-			#section_title {
-				font-size: 16px;
-				font-weight: 700;
-				margin-bottom: 10px;
-			}
-
-			QComboBox,
-			QDateEdit,
-			QTimeEdit,
-			QTextEdit {
-				border: 1px solid #d1d5db;
-				border-radius: 10px;
-				padding: 10px;
-				background: white;
-				font-size: 13px;
-			}
-
-			QTextEdit {
-				min-height: 100px;
-			}
-
-			#btn_cancel {
-				background: white;
-				border: 1px solid #d1d5db;
-				border-radius: 10px;
-				padding: 10px 18px;
-				font-weight: 700;
-			}
-
-			#btn_cancel:hover {
-				background: #f3f4f6;
-			}
-
-			#btn_save {
-				background: #22c55e;
-				color: white;
-				border: none;
-				border-radius: 10px;
-				padding: 10px 18px;
-				font-weight: 700;
-			}
-
-			#btn_save:hover {
-				background: #16a34a;
-			}
-		""")
+	def apply_theme(self):
+		base_style = theme_manager.get_stylesheet()
+		is_dark = theme_manager.is_dark
+		dialog_style = f"""
+		#btn_save {{
+			background: {'#16a34a' if is_dark else '#22c55e'};
+			color: white;
+			border: none;
+			border-radius: 10px;
+			padding: 10px 18px;
+			font-weight: 700;
+		}}
+		#btn_save:hover {{
+			background: {'#15803d' if is_dark else '#16a34a'};
+		}}
+		"""
+		self.setStyleSheet(base_style + dialog_style)

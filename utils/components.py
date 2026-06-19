@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget
-from PySide6.QtCore import Qt, QPoint, QPropertyAnimation, QEasingCurve, Property
+from PySide6.QtCore import Qt, QPoint
 from PySide6.QtGui import QPainter, QPolygon, QColor, QBrush, QLinearGradient, QRadialGradient
 
 class CubeWidget(QWidget):
@@ -13,28 +13,6 @@ class CubeWidget(QWidget):
         self.setMaximumSize(100, 100)
         
         self.anim = None
-        if should_animate:
-            self.start_floating_animation()
-
-    @Property(float)
-    def bounce_y(self) -> float:
-        return self._bounce_y
-
-    @bounce_y.setter
-    def bounce_y(self, val: float):
-        self._bounce_y = val
-        self.update()
-
-    def start_floating_animation(self):
-        """Memulai animasi melayang naik-turun secara halus."""
-        self.anim = QPropertyAnimation(self, b"bounce_y")
-        self.anim.setDuration(2000)  # 2 detik per siklus
-        self.anim.setStartValue(0.0)
-        self.anim.setKeyValueAt(0.5, -8.0)  # Melayang naik 8px di tengah siklus
-        self.anim.setEndValue(0.0)
-        self.anim.setEasingCurve(QEasingCurve.InOutSine)
-        self.anim.setLoopCount(-1)  # Loop selamanya
-        self.anim.start()
 
     def paintEvent(self, event):
         """Fungsi bawaan Qt yang dipanggil saat widget perlu digambar."""
@@ -42,7 +20,7 @@ class CubeWidget(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
         
         base_color = QColor(self.color_hex)
-        by = self._bounce_y  # Ambil offset vertical untuk animasi
+        by = 0.0  # Tidak ada animasi
         
         # 1. Gambar Bayangan di Bawah (Drop Shadow) - Berada di lantai tetap (tidak ikut memantul)
         # Ukuran & intensitas bayangan mengecil saat kubus melayang ke atas

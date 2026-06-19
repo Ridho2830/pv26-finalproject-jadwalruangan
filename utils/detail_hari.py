@@ -3,7 +3,6 @@ from PySide6.QtWidgets import (
     QScrollArea, QWidget, QFrame
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QFont
 
 class DayDetailPopup(QDialog):
     def __init__(self, date_obj, all_rooms, day_reservations, is_dark=False, parent=None):
@@ -35,7 +34,7 @@ class DayDetailPopup(QDialog):
         # Header
         lbl_header = QLabel(f"Detail Jadwal: {nama_hari}, {self.date_obj.strftime('%d-%m-%Y')}")
         color = "#f8fafc" if self.is_dark else "#0f172a"
-        lbl_header.setStyleSheet(f"font-size: 18px; font-weight: 800; color: {color};")
+        lbl_header.setStyleSheet(f"font-size: 18px; font-weight: 800; color: {color}; background: transparent;")
         layout.addWidget(lbl_header)
         
         # Scroll Area for cards
@@ -86,9 +85,25 @@ class DayDetailPopup(QDialog):
             card_layout.addWidget(lbl_rname)
             
             if not reservations:
-                lbl_status = QLabel("● Tersedia Seharian")
-                lbl_status.setStyleSheet("color: #22c55e; font-size: 12px; font-weight: bold; border: none;")
-                card_layout.addWidget(lbl_status)
+                lbl_status = QLabel("TERSEDIA SEHARIAN")
+                lbl_status.setStyleSheet("""
+                    background-color: rgba(34, 197, 94, 0.15);
+                    color: #22c55e;
+                    border-radius: 10px;
+                    padding: 4px 12px;
+                    font-size: 10px;
+                    font-weight: 800;
+                    border: none;
+                """)
+                lbl_status.setAlignment(Qt.AlignCenter)
+                # wrapper to keep size compact
+                w = QWidget()
+                w.setStyleSheet("background: transparent;")
+                wh = QHBoxLayout(w)
+                wh.setContentsMargins(0, 0, 0, 0)
+                wh.addWidget(lbl_status)
+                wh.addStretch()
+                card_layout.addWidget(w)
             else:
                 reservations.sort(key=lambda x: x.get("jam_mulai", "00:00"))
                 for res in reservations:
@@ -108,10 +123,10 @@ class DayDetailPopup(QDialog):
                     lbl_jam.setStyleSheet(f"color: {text_col}; font-size: 12px; font-family: monospace; border: none;")
                     
                     lbl_dot = QLabel("●")
-                    lbl_dot.setStyleSheet(f"color: {col}; font-size: 10px; border: none;")
+                    lbl_dot.setStyleSheet(f"color: {col}; font-size: 10px; border: none; background: transparent;")
                     
                     lbl_info = QLabel(f"{peminjam} ({status_text})")
-                    lbl_info.setStyleSheet(f"color: #64748b; font-size: 12px; border: none;")
+                    lbl_info.setStyleSheet(f"color: #64748b; font-size: 12px; border: none; background: transparent;")
                     
                     res_row.addWidget(lbl_jam)
                     res_row.addSpacing(8)

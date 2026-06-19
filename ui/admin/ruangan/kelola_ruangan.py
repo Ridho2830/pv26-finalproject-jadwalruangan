@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                                 QPushButton, QTableWidget, QTableWidgetItem, 
                                 QHeaderView, QMessageBox, QDialog, QLineEdit, 
                                 QComboBox, QFrame, QAbstractItemView)
-from PySide6.QtGui import QIntValidator, QColor
+from PySide6.QtGui import QIntValidator
 from utils.mode import theme_manager
 from api.supabase import get_supabase_client
 
@@ -40,6 +40,7 @@ class KelolaRuanganWidget(QWidget):
         
         # Room Data Table
         self.table = QTableWidget()
+        self.table.setStyleSheet("QTableWidget { border: none; background: transparent; }")
         self.table.setColumnCount(7)
         self.table.setHorizontalHeaderLabels([
             "Nama Ruangan", "Gedung", "Lantai", "Kapasitas", "Status", "Fasilitas", "Aksi"
@@ -72,8 +73,14 @@ class KelolaRuanganWidget(QWidget):
         self.table.setColumnWidth(6, 160) # Width for action buttons
         
         self.table.verticalHeader().setDefaultSectionSize(60) # Taller rows for premium feel
+
+        self.table_container = QFrame()
+
+        container_layout = QVBoxLayout(self.table_container)
+        container_layout.setContentsMargins(0,0,0,0)
+        container_layout.addWidget(self.table)
         
-        self.main_layout.addWidget(self.table)
+        self.main_layout.addWidget(self.table_container)
 
     def refresh_data(self):
         """Memuat ulang semua data ruangan dari database Supabase dan memasukkannya ke tabel."""
@@ -91,6 +98,8 @@ class KelolaRuanganWidget(QWidget):
             
             for row_idx, room in enumerate(rooms_data):
                 self.table.insertRow(row_idx)
+                for c in range(self.table.columnCount()):
+                    self.table.setItem(row_idx, c, QTableWidgetItem())
                 
                 # Column data
                 # Kolom 0: Nama Ruangan (Bold)
@@ -177,16 +186,16 @@ class KelolaRuanganWidget(QWidget):
         actions_layout.setContentsMargins(6, 2, 6, 2)
         actions_layout.setSpacing(8)
         
-        edit_btn = QPushButton("Edit")
+        edit_btn = QPushButton("✏️ Edit")
         edit_btn.setCursor(Qt.PointingHandCursor)
-        edit_btn.setObjectName("edit_action_btn")
-        edit_btn.setFixedHeight(24)
+        edit_btn.setStyleSheet("QPushButton { background-color: #f59e0b; color: white; border-radius: 6px; font-weight: bold; } QPushButton:hover { background-color: #d97706; }")
+        edit_btn.setFixedHeight(28)
         edit_btn.clicked.connect(lambda _, r=room: self.edit_room(r))
         
-        delete_btn = QPushButton("Hapus")
+        delete_btn = QPushButton("🗑️ Hapus")
         delete_btn.setCursor(Qt.PointingHandCursor)
-        delete_btn.setObjectName("delete_action_btn")
-        delete_btn.setFixedHeight(24)
+        delete_btn.setStyleSheet("QPushButton { background-color: #ef4444; color: white; border-radius: 6px; font-weight: bold; } QPushButton:hover { background-color: #dc2626; }")
+        delete_btn.setFixedHeight(28)
         delete_btn.clicked.connect(lambda _, r=room: self.delete_room(r))
         
         actions_layout.addWidget(edit_btn)

@@ -1,4 +1,4 @@
-# ui/mahasiswa/Riwayat/riwayat_peminjaman.py
+# ui/mahasiswa/riwayat/riwayat_peminjaman.py
 """
 Halaman Riwayat Peminjaman untuk mahasiswa.
 
@@ -15,24 +15,18 @@ Fitur:
 - Empty state
 """
 
-from functools import partial
 
 from PySide6.QtCore import (
     Qt,
     QDate,
-    QEasingCurve,
-    QPropertyAnimation,
-    QSequentialAnimationGroup,
-    QPauseAnimation,
 )
-from PySide6.QtGui import QColor, QPixmap
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QWidget,
     QLabel,
     QVBoxLayout,
     QHBoxLayout,
     QFrame,
-    QGraphicsOpacityEffect,
     QPushButton,
     QScrollArea,
     QComboBox,
@@ -40,6 +34,7 @@ from PySide6.QtWidgets import (
 )
 
 from api.supabase import get_supabase_client
+from utils.mode import theme_manager
 
 
 # Status yang dianggap "riwayat" (sudah final / selesai)
@@ -61,10 +56,17 @@ class RiwayatPeminjamanPage(QWidget):
 
         self.semua_riwayat = []   # data mentah dari Supabase
         self.cards         = []
-        self.anim_group    = None
 
         self._build_ui()
         self.refresh_data()
+        
+        self.apply_theme()
+        theme_manager.theme_changed.connect(self.apply_theme)
+
+    def apply_theme(self):
+        stylesheet = theme_manager.get_stylesheet()
+        if stylesheet:
+            self.setStyleSheet(stylesheet)
 
     # ==================================================================
     # BUILD UI
@@ -86,13 +88,13 @@ class RiwayatPeminjamanPage(QWidget):
         title_col.setSpacing(2)
 
         title_lbl = QLabel("Riwayat Peminjaman")
-        title_lbl.setObjectName("page_title")
+        title_lbl.setObjectName("PageTitle")
 
         subtitle_lbl = QLabel(
             f"Daftar reservasi yang telah selesai, ditolak, atau dibatalkan "
             f"atas nama {self.pengguna_nama}."
         )
-        subtitle_lbl.setObjectName("page_subtitle")
+        subtitle_lbl.setObjectName("CardMeta")
         subtitle_lbl.setWordWrap(True)
 
         title_col.addWidget(title_lbl)
@@ -284,8 +286,6 @@ class RiwayatPeminjamanPage(QWidget):
             self.list_layout.insertWidget(self.list_layout.count() - 1, card)
             self.cards.append(card)
 
-        self._animate_cards()
-
     def _reset_filter(self):
         """Kembalikan semua filter ke default."""
         self.status_combo.setCurrentIndex(0)
@@ -323,7 +323,7 @@ class RiwayatPeminjamanPage(QWidget):
 
     def _build_card(self, reservasi: dict, index: int) -> QFrame:
         card = QFrame()
-        card.setObjectName("riwayat_card")
+        card.setObjectName("RoomCard")
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(20, 18, 20, 18)
@@ -352,7 +352,7 @@ class RiwayatPeminjamanPage(QWidget):
         top_row = QHBoxLayout()
 
         room_lbl = QLabel(nama_ruangan)
-        room_lbl.setObjectName("card_room_name")
+        room_lbl.setObjectName("SectionTitle")
 
         bg, fg, icon = STATUS_STYLE.get(status, ("#E5E7EB", "#111827", "•"))
         badge = QLabel(f"{icon} {status}")
@@ -370,7 +370,7 @@ class RiwayatPeminjamanPage(QWidget):
         # ---- separator tipis ----
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
-        sep.setStyleSheet("color: #f3f4f6;")
+        sep.setStyleSheet("background: rgba(255, 255, 255, 0.1);")
         layout.addWidget(sep)
 
         # ---- grid info 2 kolom ----
@@ -431,27 +431,13 @@ class RiwayatPeminjamanPage(QWidget):
         # ---- bukti laporan ----
         bukti_frame = QFrame()
 
-        bukti_frame.setStyleSheet("""
-        QFrame{
-            background:white;
-            border:1px solid #E5E7EB;
-            border-radius:16px;
-        }
-        """)
+        bukti_frame.setObjectName("RoomCard")
 
         bukti_layout = QVBoxLayout(bukti_frame)
         bukti_layout.setContentsMargins(12, 12, 12, 12)
 
         judul = QLabel("📷 Bukti Laporan")
-        judul.setStyleSheet("""
-        QLabel{
-            font-size:15px;
-            font-weight:700;
-            color:#111827;
-            padding-bottom:8px;
-            background:transparent;
-        }
-        """)
+        judul.setObjectName("SectionTitle")
         bukti_layout.addWidget(judul)
 
         gambar = QLabel()
@@ -509,12 +495,6 @@ class RiwayatPeminjamanPage(QWidget):
         bukti_layout.addWidget(gambar)
 
         layout.addWidget(bukti_frame)
-        
-        # ---- opacity effect untuk animasi ----
-        effect = QGraphicsOpacityEffect(card)
-        effect.setOpacity(0.0)
-        card.setGraphicsEffect(effect)
-
         return card
 
     # ==================================================================
@@ -558,12 +538,6 @@ class RiwayatPeminjamanPage(QWidget):
     # ==================================================================
 
     def _clear_cards(self):
-        if hasattr(self, 'anim_group') and self.anim_group is not None:
-            self.anim_group.stop()
-            self.anim_group.clear()
-            self.anim_group.deleteLater()
-            self.anim_group = None
-
         while self.list_layout.count() > 1:
             item = self.list_layout.takeAt(0)
             widget = item.widget()
@@ -573,27 +547,3 @@ class RiwayatPeminjamanPage(QWidget):
                 except RuntimeError:
                     pass
                 widget.deleteLater()
-
-    # ==================================================================
-    # ANIMASI FADE-IN STAGGERED
-    # ==================================================================
-
-    def _animate_cards(self):
-        self.anim_group = QSequentialAnimationGroup(self)
-
-        for card in self.cards:
-            effect = card.graphicsEffect()
-            if not isinstance(effect, QGraphicsOpacityEffect):
-                continue
-
-            anim = QPropertyAnimation(effect, b"opacity", self.anim_group)
-            anim.setDuration(300)
-            anim.setStartValue(0.0)
-            anim.setEndValue(1.0)
-            anim.setEasingCurve(QEasingCurve.OutCubic)
-
-            self.anim_group.addAnimation(anim)
-            self.anim_group.addAnimation(QPauseAnimation(50, self.anim_group))
-
-        if self.anim_group.animationCount() > 0:
-            self.anim_group.start()

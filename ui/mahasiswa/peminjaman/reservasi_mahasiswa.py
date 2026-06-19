@@ -1,4 +1,4 @@
-# ui/mahasiswa/peminjaman/peminjaman_saya.py
+# ui/mahasiswa/peminjaman/reservasi_mahasiswa.py
 """
 Halaman "Peminjaman Saya" untuk mahasiswa.
 Versi redesign modern mengikuti UI dashboard pada ZIP.
@@ -16,14 +16,8 @@ from functools import partial
 
 from PySide6.QtCore import (
     Qt,
-    QEasingCurve,
-    QPropertyAnimation,
-    QParallelAnimationGroup,
-    QSequentialAnimationGroup,
-    QPauseAnimation,
 )
 
-from PySide6.QtGui import QColor
 
 from PySide6.QtWidgets import (
     QWidget,
@@ -31,15 +25,12 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QHBoxLayout,
     QFrame,
-    QGraphicsDropShadowEffect,
-    QGraphicsOpacityEffect,
     QPushButton,
     QScrollArea,
     QMessageBox,
 )
 
-from api.supabase import get_supabase_client
-from ui.mahasiswa.dialog_book import DialogUpdateReservasi
+from ui.mahasiswa.peminjaman.dialog_reservasi import DialogUpdateReservasi
 from utils.mode import theme_manager
 
 
@@ -52,7 +43,7 @@ STATUS_STYLE = {
 }
 
 
-class PeminjamanSayaPage(QWidget):
+class ReservasiMahasiswaPage(QWidget):
     def __init__(self, pengguna_id: int, pengguna_nama: str = "Mahasiswa", parent=None):
         super().__init__(parent)
 
@@ -61,10 +52,18 @@ class PeminjamanSayaPage(QWidget):
 
         self.reservasi_list = []
         self.cards = []
-        self.anim_group = None
+        self.cards = []
 
         self._build_ui()
         self.refresh_data()
+        
+        self.apply_theme()
+        theme_manager.theme_changed.connect(self.apply_theme)
+
+    def apply_theme(self):
+        stylesheet = theme_manager.get_stylesheet()
+        if stylesheet:
+            self.setStyleSheet(stylesheet)
 
     # ==============================================================
     # UI
@@ -86,21 +85,12 @@ class PeminjamanSayaPage(QWidget):
         title_col.setSpacing(2)
 
         title_lbl = QLabel("Peminjaman Saya")
-        title_lbl.setStyleSheet("""
-            font-size:30px;
-            font-weight:700;
-            color:#111827;
-            background:transparent;
-            """)
+        title_lbl.setObjectName("PageTitle")
 
         subtitle_lbl = QLabel(
             f"Riwayat dan status reservasi ruangan atas nama {self.pengguna_nama}."
         )
-        subtitle_lbl.setStyleSheet("""
-            font-size:14px;
-            color:#6B7280;
-            background:transparent;
-            """)
+        subtitle_lbl.setObjectName("CardMeta")
 
         title_col.addWidget(title_lbl)
         title_col.addWidget(subtitle_lbl)
@@ -121,12 +111,7 @@ class PeminjamanSayaPage(QWidget):
         # STATS
         # ==========================================================
         self.stats_lbl = QLabel("Memuat data...")
-        self.stats_lbl.setStyleSheet("""
-            font-size:15px;
-            font-weight:600;
-            color:#475569;
-            background:transparent;
-            """)
+        self.stats_lbl.setObjectName("stats_label")
 
         root.addWidget(self.stats_lbl)
 
@@ -134,13 +119,7 @@ class PeminjamanSayaPage(QWidget):
         # WARNING CARD
         # ==========================================================
         warning_card = QFrame()
-        warning_card.setStyleSheet("""
-            QFrame{
-                background:#FEF3C7;
-                border:1px solid #FCD34D;
-                border-radius:16px;
-            }
-            """)
+        warning_card.setObjectName("WarnBanner")
 
         warning_layout = QHBoxLayout(warning_card)
         
@@ -157,12 +136,7 @@ class PeminjamanSayaPage(QWidget):
             "Reservasi dapat dibatalkan admin apabila ruangan digunakan "
             "untuk kegiatan resmi kampus."
         )
-        warning_text.setStyleSheet("""
-            font-size:14px;
-            color:#92400E;
-            background:transparent;
-            """)
-
+        warning_text.setObjectName("WarnText")
         warning_text.setWordWrap(True)
 
         warning_layout.addWidget(warning_icon)
@@ -263,8 +237,6 @@ class PeminjamanSayaPage(QWidget):
 
             self.cards.append(card)
 
-        self._animate_cards()
-
     # ==============================================================
     # BATALKAN BOOKING
     # ==============================================================
@@ -363,16 +335,7 @@ class PeminjamanSayaPage(QWidget):
 
     def _build_card(self, reservasi, index):
         card = QFrame()
-        card.setStyleSheet("""
-            QFrame{
-                background:white;
-                border:1px solid #E5E7EB;
-                border-radius:18px;
-            }
-            QFrame:hover{
-                border:1px solid #3B82F6;
-            }
-            """)
+        card.setObjectName("RoomCard")
 
         layout = QVBoxLayout(card)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -398,12 +361,7 @@ class PeminjamanSayaPage(QWidget):
         header = QHBoxLayout()
 
         room_lbl = QLabel(nama_ruangan)
-        room_lbl.setStyleSheet("""
-            font-size:20px;
-            font-weight:700;
-            color:#111827;
-            background:transparent;
-            """)
+        room_lbl.setObjectName("SectionTitle")
 
         status_bg, status_text, status_icon = STATUS_STYLE.get(
             status,
@@ -438,11 +396,7 @@ class PeminjamanSayaPage(QWidget):
         
         detail_lbl.setTextFormat(Qt.RichText)
         detail_lbl.setWordWrap(True)
-        detail_lbl.setStyleSheet("""
-            font-size:14px;
-            color:#374151;
-            background:transparent;
-            """)
+        detail_lbl.setObjectName("CardMeta")
 
         layout.addWidget(detail_lbl)
 
@@ -458,12 +412,11 @@ class PeminjamanSayaPage(QWidget):
         keperluan_lbl.setWordWrap(True)
 
         keperluan_lbl.setStyleSheet("""
-            background:#F9FAFB;
-            border:1px solid #E5E7EB;
+            background:rgba(255, 255, 255, 0.05);
+            border:1px solid rgba(255, 255, 255, 0.1);
             border-radius:12px;
             padding:12px;
             font-size:14px;
-            color:#374151;
             """)
 
         keperluan_lbl.setWordWrap(True)
@@ -551,24 +504,12 @@ class PeminjamanSayaPage(QWidget):
             layout.addLayout(btn_row)
 
         # ==========================================================
-        # ANIMASI
+        # ANIMASI DIHAPUS DEMI PERFORMA
         # ==========================================================
-
-        opacity = QGraphicsOpacityEffect()
-        opacity.setOpacity(0)
-
-        card.setGraphicsEffect(opacity)
-
         return card
 
 
     def _clear_cards(self):
-        if hasattr(self, 'anim_group') and self.anim_group is not None:
-            self.anim_group.stop()
-            self.anim_group.clear()
-            self.anim_group.deleteLater()
-            self.anim_group = None
-
         while self.list_layout.count() > 1:
             item = self.list_layout.takeAt(0)
             widget = item.widget()
@@ -578,26 +519,4 @@ class PeminjamanSayaPage(QWidget):
                 except RuntimeError:
                     pass
                 widget.deleteLater()
-
-    # ==============================================================
-    # ANIMATION
-    # ==============================================================
-
-    def _animate_cards(self):
-        self.anim_group = QSequentialAnimationGroup(self)
-
-        for card in self.cards:
-            effect = card.graphicsEffect()
-
-            anim = QPropertyAnimation(effect, b"opacity", self.anim_group)
-            anim.setDuration(350)
-            anim.setStartValue(0)
-            anim.setEndValue(1)
-            anim.setEasingCurve(QEasingCurve.OutCubic)
-
-            self.anim_group.addAnimation(anim)
-            self.anim_group.addAnimation(QPauseAnimation(60, self.anim_group))
-
-        if self.anim_group.animationCount() > 0:
-            self.anim_group.start()
             

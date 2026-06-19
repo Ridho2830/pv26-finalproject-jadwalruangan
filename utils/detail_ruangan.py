@@ -88,7 +88,15 @@ class DetailRuanganPopup(QDialog):
         
         # ── Info Grid ──
         info_frame = QFrame()
-        info_frame.setProperty("class", "room_card")
+        # Fix CSS leak: Don't use the generic room_card class that overrides everything
+        info_frame.setObjectName("InfoCardFrame")
+        info_frame.setStyleSheet("""
+            QFrame#InfoCardFrame {
+                background: rgba(255,255,255,0.03);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 12px;
+            }
+        """)
         info_grid = QGridLayout(info_frame)
         info_grid.setContentsMargins(16, 16, 16, 16)
         info_grid.setSpacing(12)

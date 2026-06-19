@@ -7,25 +7,22 @@ Desain mengikuti admin dashboard:
   - Sub-pages: Peminjaman Saya, Riwayat
 """
 
-import os
-from PySide6.QtCore import Qt, QSize, QRect, QPoint, Signal, QPropertyAnimation, QEasingCurve, QTimer
+from PySide6.QtCore import Qt, QRect, Signal, QTimer
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFrame, QScrollArea, QSizePolicy,
-    QStackedWidget, QGridLayout, QComboBox,
-    QGraphicsOpacityEffect
+    QStackedWidget, QGridLayout, QComboBox
 )
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QCursor, QPixmap, QBrush
+from PySide6.QtGui import QColor, QFont, QPainter, QCursor, QPixmap, QBrush
 
-from utils.components import CubeWidget
 from api.supabase import get_supabase_client
 from utils.chatbot import ChatbotDialog
 from utils.detail_hari import DayDetailPopup
 from utils.mode import theme_manager
 
-from ui.mahasiswa.peminjaman.peminjaman_saya import PeminjamanSayaPage
-from ui.mahasiswa.Riwayat.riwayat_peminjaman import RiwayatPeminjamanPage
-from ui.mahasiswa.dialog_book import DialogBuatReservasi
+from ui.mahasiswa.peminjaman.reservasi_mahasiswa import ReservasiMahasiswaPage
+from ui.mahasiswa.riwayat.riwayat_peminjaman import RiwayatPeminjamanPage
+from ui.mahasiswa.peminjaman.dialog_reservasi import DialogBuatReservasi
 
 
 # ──────────────────────────────────────────────
@@ -94,13 +91,12 @@ class KpiCard(QFrame):
         self.lbl_title = QLabel(title)
         self.lbl_title.setObjectName("KpiTitle")
         icon_lbl = QLabel(icon)
-        icon_lbl.setStyleSheet(
-            f"font-size:18px; background:{accent}22; border-radius:8px;"
-            f"padding:4px 6px; color:{accent};"
-        )
+        icon_lbl.setAlignment(Qt.AlignCenter)
+        icon_lbl.setFixedSize(36, 36)
+        icon_lbl.setStyleSheet(f"font-size:18px; background:#20{accent[1:]}; border-radius:8px; color:{accent};")
         top.addWidget(self.lbl_title)
         top.addStretch()
-        top.addWidget(icon_lbl)
+        top.addWidget(icon_lbl, alignment=Qt.AlignVCenter)
         layout.addLayout(top)
 
         self.lbl_value = QLabel(value)
@@ -172,7 +168,7 @@ class MahasiswaPage(QWidget):
         self.content_stack.addWidget(self.dashboard_page)
 
     def _build_peminjaman_page(self):
-        self.peminjaman_page = PeminjamanSayaPage(
+        self.peminjaman_page = ReservasiMahasiswaPage(
             pengguna_id=self.pengguna_id,
             pengguna_nama=self.pengguna_nama
         )
@@ -674,7 +670,7 @@ class MahasiswaPage(QWidget):
 
     def show_chatbot(self):
         if not hasattr(self, "_chatbot") or self._chatbot is None:
-            self._chatbot = ChatbotDialog(self)
+            self._chatbot = ChatbotDialog(self, is_dark=self.is_dark, role="Mahasiswa")
         self._chatbot.show()
         self._chatbot.raise_()
         self._chatbot.activateWindow()

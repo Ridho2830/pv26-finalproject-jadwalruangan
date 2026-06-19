@@ -9,14 +9,13 @@ Perbaikan utama:
 """
 
 import os
-from PySide6.QtCore import Qt, QSize, QRect, QPoint, Signal, Slot, QPropertyAnimation, QEasingCurve, QTimer
+from PySide6.QtCore import Qt, QSize, QRect, QPoint, Signal, QTimer
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFrame, QScrollArea, QSizePolicy,
-    QLayout, QLayoutItem, QLineEdit, QGraphicsOpacityEffect,
-    QSpacerItem, QApplication, QStackedWidget, QGridLayout
+    QLayout, QStackedWidget, QGridLayout
 )
-from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QCursor, QPixmap, QBrush
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QCursor, QPixmap, QBrush
 from utils.components import CubeWidget
 from api.supabase import get_supabase_client
 from utils.chatbot import ChatbotDialog
@@ -26,6 +25,7 @@ from utils.mode import theme_manager
 from ui.admin.ruangan.kelola_ruangan import KelolaRuanganWidget
 from ui.admin.pengguna.kelola_pengguna import KelolaPenggunaWidget
 from ui.admin.reservasi.kelola_reservasi import KelolaReservasiWidget
+from ui.admin.statistik.statistik_widget import StatistikWidget
 
 STATUS_META = {
     "Tersedia": { "color": "#22c55e", "bg": "rgba(34,197,94,0.12)", "text": "#14532d", "label": "Tersedia" },
@@ -283,13 +283,12 @@ class KpiCard(QFrame):
         self.lbl_title = QLabel(title)
         self.lbl_title.setObjectName("KpiTitle")
         icon_lbl = QLabel(icon)
-        icon_lbl.setStyleSheet(
-            f"font-size:18px; background:{accent}22; border-radius:8px;"
-            f"padding:4px 6px; color:{accent};"
-        )
+        icon_lbl.setAlignment(Qt.AlignCenter)
+        icon_lbl.setFixedSize(36, 36)
+        icon_lbl.setStyleSheet(f"font-size:18px; background:#20{accent[1:]}; border-radius:8px; color:{accent};")
         top.addWidget(self.lbl_title)
         top.addStretch()
-        top.addWidget(icon_lbl)
+        top.addWidget(icon_lbl, alignment=Qt.AlignVCenter)
         layout.addLayout(top)
 
         self.lbl_value = QLabel(value)
@@ -439,6 +438,7 @@ class AdminDashboard(QWidget):
         self._build_ruangan_page()
         self._build_pengguna_page()
         self._build_reservasi_page()
+        self._build_statistik_page()
 
         self.refresh_data()
         self.apply_theme()
@@ -465,6 +465,10 @@ class AdminDashboard(QWidget):
         self.kelola_reservasi_page = KelolaReservasiWidget(self)
         self.content_stack.addWidget(self.kelola_reservasi_page)
 
+    def _build_statistik_page(self):
+        self.statistik_page = StatistikWidget(self)
+        self.content_stack.addWidget(self.statistik_page)
+
     def switch_page(self, index: int):
         for i, btn in enumerate(self.nav_buttons):
             btn.set_active(i == index)
@@ -480,6 +484,8 @@ class AdminDashboard(QWidget):
             self.kelola_pengguna_page.refresh_data()
         elif index == 3 and hasattr(self, 'kelola_reservasi_page'):
             self.kelola_reservasi_page.refresh_data()
+        elif index == 4 and hasattr(self, 'statistik_page'):
+            self.statistik_page.refresh_data()
 
     # ─── SIDEBAR ────────────────────────────────
     def _build_sidebar(self, root):
@@ -593,6 +599,7 @@ class AdminDashboard(QWidget):
             ("🏢", "Kelola Ruangan"),
             ("👥", "Kelola Pengguna"),
             ("📅", "Kelola Reservasi"),
+            ("📊", "Statistik"),
             ("⚙️", "Pengaturan"),
         ]
         for i, (icon, label) in enumerate(nav_items):
@@ -981,7 +988,7 @@ class AdminDashboard(QWidget):
 
     def show_chatbot(self):
         if not hasattr(self, "_chatbot") or self._chatbot is None:
-            self._chatbot = ChatbotDialog(self)
+            self._chatbot = ChatbotDialog(self, role="Admin")
         self._chatbot.show()
         self._chatbot.raise_()
         self._chatbot.activateWindow()

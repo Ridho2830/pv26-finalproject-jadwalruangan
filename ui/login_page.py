@@ -1,10 +1,10 @@
 import os
 import bcrypt
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QPixmap, QIcon, QFont
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                                QLineEdit, QPushButton, QFrame, QScrollArea, 
-                               QGridLayout, QSpacerItem, QSizePolicy, QCheckBox)
+                               QSizePolicy, QCheckBox)
 from utils.mode import theme_manager
 from api.supabase import get_supabase_client
 
@@ -252,7 +252,7 @@ class LoginPage(QWidget):
         
         try:
             supabase = get_supabase_client()
-            user_data = supabase.table('pengguna').select(filters=f"username=eq.{username}")
+            user_data = supabase.table('pengguna').select(filters=f"or=(username.eq.{username},nim_nip.eq.{username})")
             
             if not user_data:
                 self.show_error("Username atau password salah!")

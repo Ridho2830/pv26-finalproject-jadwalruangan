@@ -1,10 +1,9 @@
-from PySide6.QtCore import QTimer, QDateTime, Qt, QPropertyAnimation, QEasingCurve, QParallelAnimationGroup, QSequentialAnimationGroup, QPauseAnimation
+from datetime import datetime
+from PySide6.QtCore import QTimer, QDateTime, Qt
 from functools import partial
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
-                               QLabel, QPushButton, QComboBox, 
-                               QFrame, QGridLayout, QScrollArea,
-                               QGraphicsDropShadowEffect, QGraphicsOpacityEffect)
-from PySide6.QtGui import QColor
+                               QLabel, QPushButton, QFrame, 
+                               QGridLayout, QScrollArea, QScroller)
 
 # Impor komponen kustom dari utils
 from utils.components import CubeWidget
@@ -77,6 +76,10 @@ class StatusRuanganView(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_time)
         self.timer.start(1000)
+        
+        self.auto_refresh_timer = QTimer(self)
+        self.auto_refresh_timer.timeout.connect(self.refresh_data)
+        self.auto_refresh_timer.start(10000) # 10 detik
         
         login_btn = QPushButton("Login")
         login_btn.setObjectName("login_btn")
@@ -171,6 +174,7 @@ class StatusRuanganView(QWidget):
         self.scroll_area.setObjectName("main_canvas")
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QFrame.NoFrame)
+        QScroller.grabGesture(self.scroll_area.viewport(), QScroller.LeftMouseButtonGesture)
         
         self.canvas_widget = QWidget()
         self.canvas_main_layout = QVBoxLayout(self.canvas_widget)
@@ -209,12 +213,6 @@ class StatusRuanganView(QWidget):
 
     def refresh_data(self):
         """Memperbarui data ruangan dari database Supabase dan merender kartu ruangan."""
-        if hasattr(self, 'anim_group'):
-            self.anim_group.stop()
-            self.anim_group.clear()
-            self.anim_group.deleteLater()
-            del self.anim_group
-            
         self.clear_layout(self.canvas_layout)
         self.cards = []
         self.rooms_raw = []
@@ -230,9 +228,24 @@ class StatusRuanganView(QWidget):
         if not rooms_data:
             rooms_data = []
         
+        # Fetch data reservasi hari ini untuk kalkulasi status
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        current_time = datetime.now().strftime("%H:%M")
+        reservasi_data = supabase.table('reservasi').select("*", f"status=eq.Disetujui&tanggal=eq.{today_str}")
+        if not reservasi_data:
+            reservasi_data = []
+            
+        room_reservations = {}
+        for res in reservasi_data:
+            rid = res.get('ruangan_id')
+            if rid not in room_reservations:
+                room_reservations[rid] = []
+            room_reservations[rid].append(res)
+        
         counts = {"Tersedia": 0, "Terbooking": 0, "Terpakai": 0}
         
         filtered_rooms = []
+        upcoming_reservations = []
         
         # Deduplikasi ruangan berdasarkan nama agar tidak ganda di layar
         seen_names = set()
@@ -245,18 +258,30 @@ class StatusRuanganView(QWidget):
                 continue
             seen_names.add(name)
             
+            rid = r.get('id')
             gedung = r.get('gedung', 'Unknown')
             lantai = r.get('lantai', 0)
             kapasitas = r.get('kapasitas', 0)
-            status = r.get('status', 'Tersedia')
             
-            # Fallback mapping if database has legacy values
-            if status == "Digunakan":
-                status = "Terpakai"
-            elif status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
-                status = "Terpakai"
-            elif status == "Dosen":
-                status = "Terbooking"
+            # Cek status dinamis berdasarkan reservasi
+            base_status = r.get('status', 'Tersedia')
+            status = "Tersedia"
+            
+            if base_status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
+                status = "Terpakai" # Override
+            else:
+                res_for_room = room_reservations.get(rid, [])
+                for res in res_for_room:
+                    jam_mulai = res.get('jam_mulai', '00:00')
+                    jam_selesai = res.get('jam_selesai', '00:00')
+                    
+                    if jam_mulai <= current_time <= jam_selesai:
+                        status = "Terpakai"
+                        break
+                    elif current_time < jam_mulai:
+                        if status != "Terpakai":
+                            status = "Terbooking"
+                        upcoming_reservations.append((res, name))
             
             # Hitung statistik dari database (sebelum difilter untuk visualisasi statistik)
             if status in counts:
@@ -279,11 +304,25 @@ class StatusRuanganView(QWidget):
                 badge_class = "badge_booked"
                 
             filtered_rooms.append((name, status, badge_class))
+            r['status'] = status
             self.rooms_raw.append(r)
         
         # Update label statistik
         if hasattr(self, 'stats_label'):
             self.stats_label.setText(f"{counts.get('Tersedia', 0)} TERSEDIA · {counts.get('Terbooking', 0)} TERBOOKING · {counts.get('Terpakai', 0)} TERPAKAI")
+            
+        # Update Notifikasi Banner
+        if hasattr(self, 'notif_text') and hasattr(self, 'notif_banner'):
+            if upcoming_reservations:
+                upcoming_reservations.sort(key=lambda x: x[0].get('jam_mulai', '99:99'))
+                nearest = upcoming_reservations[0]
+                jam = nearest[0].get('jam_mulai', '')
+                keperluan = nearest[0].get('keperluan', 'Kegiatan')
+                ruang_nama = nearest[1]
+                self.notif_text.setText(f"INFO: Ruangan {ruang_nama} telah dipesan untuk '{keperluan}' pada pukul {jam}.")
+                self.notif_banner.show()
+            else:
+                self.notif_banner.hide()
         
         # Render kartu ruangan
         if not filtered_rooms:
@@ -367,7 +406,7 @@ class StatusRuanganView(QWidget):
             elif status == "Terbooking" or status == "Dosen":
                 cube_color = "#F59E0B"
                 
-            should_animate = status in ("Terpakai", "Digunakan", "Terbooking", "Dosen")
+            should_animate = False # Dinonaktifkan untuk performa (mencegah lag dari infinite repaints)
             cube_widget = CubeWidget(cube_color, should_animate=should_animate)
             cube_container = QWidget()
             cube_container_layout = QHBoxLayout(cube_container)
@@ -397,48 +436,9 @@ class StatusRuanganView(QWidget):
             container_layout.setContentsMargins(8, 8, 8, 8)
             container_layout.addWidget(card)
             
-            shadow = QGraphicsDropShadowEffect(card)
-            shadow.setBlurRadius(16)
-            shadow.setColor(QColor(155, 93, 229, 40) if is_dark else QColor(107, 114, 128, 40))
-            shadow.setOffset(0, 4)
-            card.setGraphicsEffect(shadow)
-            
-            opacity_effect = QGraphicsOpacityEffect(container)
-            container.setGraphicsEffect(opacity_effect)
-            opacity_effect.setOpacity(0.0)
-            
             self.cards.append(container)
         
         self.adjust_grid_columns()
-        
-        # Animasi staggered fade-in
-        self.anim_group = QParallelAnimationGroup(self)
-        for idx, container in enumerate(self.cards):
-            effect = container.graphicsEffect()
-            if isinstance(effect, QGraphicsOpacityEffect):
-                seq_group = QSequentialAnimationGroup(self.anim_group)
-                
-                anim = QPropertyAnimation(effect, b"opacity", seq_group)
-                anim.setDuration(450)
-                anim.setStartValue(0.0)
-                anim.setEndValue(1.0)
-                anim.setEasingCurve(QEasingCurve.OutCubic)
-                
-                pause = QPauseAnimation(idx * 75, seq_group)
-                seq_group.addAnimation(pause)
-                seq_group.addAnimation(anim)
-                
-                def safe_remove_effect(c=container):
-                    try:
-                        c.setGraphicsEffect(None)
-                    except RuntimeError:
-                        pass
-                
-                seq_group.finished.connect(safe_remove_effect)
-                self.anim_group.addAnimation(seq_group)
-                
-        if self.anim_group.animationCount() > 0:
-            self.anim_group.start()
 
     def _on_card_clicked(self, event, index):
         if index < len(self.rooms_raw):
@@ -480,9 +480,9 @@ class StatusRuanganView(QWidget):
         notif_icon = QLabel("⚠️")
         notif_icon.setStyleSheet("font-size: 16px; background-color: transparent;")
         
-        notif_text = QLabel("INFO: Lab Komputer B2 akan ditutup pada pukul 14:00 untuk maintenance harian.")
-        notif_text.setObjectName("notif_text")
-        notif_text.setWordWrap(True)
+        self.notif_text = QLabel("INFO: Memuat jadwal ruangan...")
+        self.notif_text.setObjectName("notif_text")
+        self.notif_text.setWordWrap(True)
         
         dismiss_btn = QPushButton("✕")
         dismiss_btn.setObjectName("dismiss_btn")
@@ -491,7 +491,7 @@ class StatusRuanganView(QWidget):
         dismiss_btn.clicked.connect(lambda: self.notif_banner.hide())
         
         notif_layout.addWidget(notif_icon)
-        notif_layout.addWidget(notif_text, 1)
+        notif_layout.addWidget(self.notif_text, 1)
         notif_layout.addWidget(dismiss_btn)
         
         footer = QWidget()
