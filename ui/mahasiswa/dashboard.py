@@ -322,9 +322,9 @@ class MahasiswaPage(QWidget):
         btn_out.setCursor(QCursor(Qt.PointingHandCursor))
         btn_out.setFixedHeight(38)
         btn_out.setStyleSheet(
-            "QPushButton{background:transparent;color:#ef4444;border:1px solid #ef444430;"
+            "QPushButton{background:transparent;color:#ef4444;border:1px solid rgba(239, 68, 68, 0.3);"
             "border-radius:10px;font-weight:600;font-size:12px;margin:0 12px;}"
-            "QPushButton:hover{background:#ef444415;}"
+            "QPushButton:hover{background:rgba(239, 68, 68, 0.15);}"
         )
         btn_out.clicked.connect(self.handle_logout)
         sb.addWidget(btn_out)
