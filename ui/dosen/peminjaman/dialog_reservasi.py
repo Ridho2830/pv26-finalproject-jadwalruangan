@@ -641,11 +641,11 @@ class DialogBuatReservasi(QDialog):
 		self.date_edit.setMinimumDate(QDate.currentDate())
 
 		self.start_time = QTimeEdit()
-		self.start_time.setTime(QTime(8, 0))
+		self.start_time.setTime(QTime(7, 0))
 		self.start_time.setDisplayFormat("HH:mm")
 
 		self.end_time = QTimeEdit()
-		self.end_time.setTime(QTime(10, 0))
+		self.end_time.setTime(QTime(9, 0))
 		self.end_time.setDisplayFormat("HH:mm")
 
 		row.addWidget(self.date_edit)

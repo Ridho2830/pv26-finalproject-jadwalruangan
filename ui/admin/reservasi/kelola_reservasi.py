@@ -705,6 +705,17 @@ class ReservasiFormDialog(QDialog):
         self.save_btn.setEnabled(False)
         self.save_btn.setText("Menyimpan...")
         
+        payload = {
+            "pengguna_id": pengguna_id,
+            "ruangan_id": ruangan_id,
+            "tanggal": tanggal,
+            "jam_mulai": jam_mulai,
+            "jam_selesai": jam_selesai,
+            "keperluan": keperluan,
+            "status": status,
+            "catatan_admin": catatan
+        }
+        
         from utils.worker import Worker
         rid = self.reservasi_data.get("id") if self.is_edit else None
         self.save_worker = Worker(self._save_reservasi_worker, ruangan_id, tanggal, jam_mulai, jam_selesai, status, payload, rid)
