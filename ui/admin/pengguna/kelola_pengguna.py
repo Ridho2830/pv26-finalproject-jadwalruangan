@@ -81,88 +81,94 @@ class KelolaPenggunaWidget(QWidget):
         self.main_layout.addWidget(self.table_container)
 
     def refresh_data(self):
-        """Memuat ulang semua data pengguna dari database Supabase dan memasukkannya ke tabel."""
+        """Memuat ulang semua data pengguna dari database Supabase secara asinkron."""
+        if hasattr(self, 'worker') and self.worker.isRunning():
+            return
+            
         self.table.setRowCount(0)
-        
-        try:
-            supabase = get_supabase_client()
-            users_data = supabase.table('pengguna').select()
+        from utils.worker import Worker
+        self.worker = Worker(self._fetch_users_worker)
+        self.worker.finished.connect(self._on_users_fetched)
+        self.worker.error.connect(self._on_error)
+        self.worker.start()
+
+    def _fetch_users_worker(self):
+        from api.supabase import get_supabase_client
+        supabase = get_supabase_client()
+        users_data = supabase.table('pengguna').select()
+        if not users_data:
+            users_data = []
+        return sorted(users_data, key=lambda x: x.get('nama', '').lower())
+
+    def _on_error(self, err_msg):
+        QMessageBox.critical(self, "Database Error", f"Gagal memproses data!\n{err_msg}")
+
+    def _on_users_fetched(self, users_data):
+        self.table.setRowCount(0)
+        for row_idx, user in enumerate(users_data):
+            self.table.insertRow(row_idx)
+            for c in range(self.table.columnCount()):
+                self.table.setItem(row_idx, c, QTableWidgetItem())
             
-            if not users_data:
-                users_data = []
-                
-            # Urutkan berdasarkan nama pengguna
-            users_data = sorted(users_data, key=lambda x: x.get('nama', '').lower())
+            # Kolom 0: Nama (Bold)
+            nama_widget = QWidget()
+            nama_layout = QHBoxLayout(nama_widget)
+            nama_layout.setContentsMargins(16, 0, 16, 0)
+            nama_lbl = QLabel(str(user.get('nama', '-')))
+            nama_lbl.setStyleSheet("font-weight: 800; font-size: 14px; background-color: transparent;")
+            nama_layout.addWidget(nama_lbl)
+            nama_layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            self.table.setCellWidget(row_idx, 0, nama_widget)
             
-            for row_idx, user in enumerate(users_data):
-                self.table.insertRow(row_idx)
-                for c in range(self.table.columnCount()):
-                    self.table.setItem(row_idx, c, QTableWidgetItem())
+            # Kolom 1: Username
+            username_widget = QWidget()
+            username_layout = QHBoxLayout(username_widget)
+            username_layout.setContentsMargins(16, 0, 16, 0)
+            username_lbl = QLabel(str(user.get('username', '-')))
+            username_lbl.setStyleSheet("font-weight: 600; font-size: 13px; color: #6b6b80; background-color: transparent;")
+            username_layout.addWidget(username_lbl)
+            username_layout.setAlignment(Qt.AlignCenter)
+            self.table.setCellWidget(row_idx, 1, username_widget)
+            
+            # Kolom 2: Role
+            role_widget = QWidget()
+            role_layout = QHBoxLayout(role_widget)
+            role_layout.setContentsMargins(16, 0, 16, 0)
+            role_lbl = QLabel(str(user.get('role', '-')))
+            role_lbl.setStyleSheet("font-size: 13px; font-weight: bold; color: #8888a0; background-color: transparent;")
+            role_layout.addWidget(role_lbl)
+            role_layout.setAlignment(Qt.AlignCenter)
+            self.table.setCellWidget(row_idx, 2, role_widget)
+            
+            # Kolom 3: NIM/NIP
+            nim_widget = QWidget()
+            nim_layout = QHBoxLayout(nim_widget)
+            nim_layout.setContentsMargins(16, 0, 16, 0)
+            nim_lbl = QLabel(str(user.get('nim_nip', '-')))
+            nim_lbl.setStyleSheet("font-size: 13px; color: #6b6b80; background-color: transparent;")
+            nim_layout.addWidget(nim_lbl)
+            nim_layout.setAlignment(Qt.AlignCenter)
+            self.table.setCellWidget(row_idx, 3, nim_widget)
+            
+            # Kolom 4: Status (Aktif/Nonaktif)
+            is_active = user.get('is_active', True)
+            status_val = "Aktif" if is_active else "Nonaktif"
+            
+            status_widget = QWidget()
+            status_layout = QHBoxLayout(status_widget)
+            status_layout.setContentsMargins(16, 0, 16, 0)
+            status_badge = QLabel(status_val)
+            
+            badge_class = "badge badge_available" if is_active else "badge badge_in_use"
                 
-                # Column data
-                # Kolom 0: Nama (Bold)
-                nama_widget = QWidget()
-                nama_layout = QHBoxLayout(nama_widget)
-                nama_layout.setContentsMargins(16, 0, 16, 0)
-                nama_lbl = QLabel(str(user.get('nama', '-')))
-                nama_lbl.setStyleSheet("font-weight: 800; font-size: 14px; background-color: transparent;")
-                nama_layout.addWidget(nama_lbl)
-                nama_layout.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-                self.table.setCellWidget(row_idx, 0, nama_widget)
-                
-                # Kolom 1: Username
-                username_widget = QWidget()
-                username_layout = QHBoxLayout(username_widget)
-                username_layout.setContentsMargins(16, 0, 16, 0)
-                username_lbl = QLabel(str(user.get('username', '-')))
-                username_lbl.setStyleSheet("font-weight: 600; font-size: 13px; color: #6b6b80; background-color: transparent;")
-                username_layout.addWidget(username_lbl)
-                username_layout.setAlignment(Qt.AlignCenter)
-                self.table.setCellWidget(row_idx, 1, username_widget)
-                
-                # Kolom 2: Role
-                role_widget = QWidget()
-                role_layout = QHBoxLayout(role_widget)
-                role_layout.setContentsMargins(16, 0, 16, 0)
-                role_lbl = QLabel(str(user.get('role', '-')))
-                role_lbl.setStyleSheet("font-size: 13px; font-weight: bold; color: #8888a0; background-color: transparent;")
-                role_layout.addWidget(role_lbl)
-                role_layout.setAlignment(Qt.AlignCenter)
-                self.table.setCellWidget(row_idx, 2, role_widget)
-                
-                # Kolom 3: NIM/NIP
-                nim_widget = QWidget()
-                nim_layout = QHBoxLayout(nim_widget)
-                nim_layout.setContentsMargins(16, 0, 16, 0)
-                nim_lbl = QLabel(str(user.get('nim_nip', '-')))
-                nim_lbl.setStyleSheet("font-size: 13px; color: #6b6b80; background-color: transparent;")
-                nim_layout.addWidget(nim_lbl)
-                nim_layout.setAlignment(Qt.AlignCenter)
-                self.table.setCellWidget(row_idx, 3, nim_widget)
-                
-                # Kolom 4: Status (Aktif/Nonaktif)
-                is_active = user.get('is_active', True)
-                status_val = "Aktif" if is_active else "Nonaktif"
-                
-                status_widget = QWidget()
-                status_layout = QHBoxLayout(status_widget)
-                status_layout.setContentsMargins(16, 0, 16, 0)
-                status_badge = QLabel(status_val)
-                
-                badge_class = "badge badge_available" if is_active else "badge badge_in_use"
-                    
-                status_badge.setProperty("class", badge_class)
-                status_badge.setAlignment(Qt.AlignCenter)
-                status_layout.addWidget(status_badge)
-                status_layout.setAlignment(Qt.AlignCenter)
-                self.table.setCellWidget(row_idx, 4, status_widget)
-                
-                # Action Buttons
-                self._add_action_buttons(row_idx, user)
-                
-        except Exception as e:
-            print(f"Error loading users data: {e}")
-            QMessageBox.critical(self, "Database Error", "Gagal mengambil data pengguna dari database Supabase!")
+            status_badge.setProperty("class", badge_class)
+            status_badge.setAlignment(Qt.AlignCenter)
+            status_layout.addWidget(status_badge)
+            status_layout.setAlignment(Qt.AlignCenter)
+            self.table.setCellWidget(row_idx, 4, status_widget)
+            
+            # Action Buttons
+            self._add_action_buttons(row_idx, user)
 
     def _add_action_buttons(self, row_idx, user):
         actions_widget = QWidget()
@@ -201,12 +207,9 @@ class KelolaPenggunaWidget(QWidget):
             self.refresh_data()
 
     def delete_user(self, user_data):
-        """Menghapus pengguna terpilih setelah konfirmasi."""
+        """Menghapus pengguna terpilih setelah konfirmasi secara asinkron."""
         user_name = user_data.get('nama', 'Pengguna')
         user_id = user_data.get('id')
-        
-        # Cegah hapus diri sendiri jika id kita sama (Opsional, tapi praktik bagus)
-        # Saat ini kita tidak track active admin ID di module ini secara eksplisit
         
         reply = QMessageBox.question(
             self, 'Konfirmasi Hapus',
@@ -215,17 +218,22 @@ class KelolaPenggunaWidget(QWidget):
         )
         
         if reply == QMessageBox.Yes:
-            try:
-                supabase = get_supabase_client()
-                # Delete dari Supabase
-                res = supabase.table('pengguna').delete(f"id=eq.{user_id}")
+            if hasattr(self, 'delete_worker') and self.delete_worker.isRunning():
+                return
                 
-                # Di versi postgrest terbaru, hapus berhasil tidak throw error.
-                QMessageBox.information(self, "Sukses", f"Pengguna '{user_name}' berhasil dihapus.")
-                self.refresh_data()
-            except Exception as e:
-                print(f"Error deleting user: {e}")
-                QMessageBox.critical(self, "Error", f"Terjadi kesalahan saat menghapus data: {e}")
+            from utils.worker import Worker
+            self.delete_worker = Worker(self._delete_user_worker, user_id)
+            self.delete_worker.finished.connect(lambda res: self._on_delete_finished(res, user_name))
+            self.delete_worker.error.connect(self._on_error)
+            self.delete_worker.start()
+
+    def _delete_user_worker(self, user_id):
+        from api.supabase import get_supabase_client
+        return get_supabase_client().table('pengguna').delete(f"id=eq.{user_id}")
+
+    def _on_delete_finished(self, res, user_name):
+        QMessageBox.information(self, "Sukses", f"Pengguna '{user_name}' berhasil dihapus.")
+        self.refresh_data()
 
     def apply_theme(self):
         stylesheet = theme_manager.get_stylesheet()
@@ -371,39 +379,52 @@ class PenggunaFormDialog(QDialog):
             self.warning_lbl.show()
             return
             
-        try:
-            payload = {
-                "nama": nama,
-                "username": username,
-                "role": role,
-                "nim_nip": nim_nip if nim_nip else "-",
-                "is_active": is_active
-            }
+        if hasattr(self, 'save_worker') and self.save_worker.isRunning():
+            return
             
-            # Jika ada password baru, hash passwordnya
-            if password:
-                # Generate salt and hash
-                salt = bcrypt.gensalt(rounds=12)
-                hashed_pwd = bcrypt.hashpw(password.encode('utf-8'), salt)
-                payload["password"] = hashed_pwd.decode('utf-8')
+        self.save_btn.setEnabled(False)
+        self.save_btn.setText("Menyimpan...")
+        
+        payload = {
+            "nama": nama,
+            "username": username,
+            "role": role,
+            "nim_nip": nim_nip if nim_nip else "-",
+            "is_active": is_active
+        }
+        
+        from utils.worker import Worker
+        user_id = self.user_data.get('id') if self.is_edit else None
+        self.save_worker = Worker(self._save_user_worker, payload, password, user_id)
+        self.save_worker.finished.connect(self._on_save_finished)
+        self.save_worker.error.connect(self._on_save_error)
+        self.save_worker.start()
+
+    def _save_user_worker(self, payload, password, user_id):
+        import bcrypt
+        from api.supabase import get_supabase_client
+        
+        if password:
+            salt = bcrypt.gensalt(rounds=12)
+            hashed_pwd = bcrypt.hashpw(password.encode('utf-8'), salt)
+            payload["password"] = hashed_pwd.decode('utf-8')
             
-            supabase = get_supabase_client()
-            
-            if self.is_edit:
-                # Update database
-                user_id = self.user_data.get('id')
-                res = supabase.table('pengguna').update(payload, f"id=eq.{user_id}")
-            else:
-                # Insert database
-                res = supabase.table('pengguna').insert(payload)
-                
-            self.accept()
-            
-        except Exception as e:
-            # Pengecekan username duplicate dll
-            err_msg = str(e)
-            if "duplicate key" in err_msg.lower() or "unique constraint" in err_msg.lower():
-                self.warning_lbl.setText("Error: Username sudah digunakan!")
-            else:
-                self.warning_lbl.setText(f"Error database: {err_msg}")
-            self.warning_lbl.show()
+        supabase = get_supabase_client()
+        if user_id:
+            return supabase.table('pengguna').update(payload, f"id=eq.{user_id}")
+        else:
+            return supabase.table('pengguna').insert(payload)
+
+    def _on_save_finished(self, res):
+        self.save_btn.setEnabled(True)
+        self.save_btn.setText("Simpan")
+        self.accept()
+
+    def _on_save_error(self, err_msg):
+        self.save_btn.setEnabled(True)
+        self.save_btn.setText("Simpan")
+        if "duplicate key" in err_msg.lower() or "unique constraint" in err_msg.lower():
+            self.warning_lbl.setText("Error: Username sudah digunakan!")
+        else:
+            self.warning_lbl.setText(f"Error database: {err_msg}")
+        self.warning_lbl.show()

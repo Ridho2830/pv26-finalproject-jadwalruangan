@@ -1,9 +1,5 @@
 supabase
 PySide6
-reportlab
 matplotlib
-qrcode
-Pillow
-scikit-learn
 bcrypt
 requests

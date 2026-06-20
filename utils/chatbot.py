@@ -307,6 +307,8 @@ class OllamaWorker(QThread):
             "Anda adalah Asisten AI untuk Sistem Reservasi Kampus. "
             "Gunakan bahasa Indonesia yang ramah, ringkas, dan profesional. "
             "Bantu pengguna terkait ketersediaan ruangan, aturan reservasi, atau fasilitas kampus. "
+            "PENTING: Perhatikan kondisi khusus pengguna (misalnya hamil, sakit kaki, disabilitas, atau lainnya) jika mereka menyebutkannya. "
+            "Jika pengguna memiliki kondisi khusus tersebut, prioritaskan merekomendasikan ruangan di lantai dasar/lantai 1 atau ruangan yang mudah diakses (misalnya dengan akses lift). "
             f"{role_instructions}"
             f"{db_context}"
         )

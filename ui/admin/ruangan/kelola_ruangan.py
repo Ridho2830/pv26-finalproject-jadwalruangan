@@ -83,100 +83,106 @@ class KelolaRuanganWidget(QWidget):
         self.main_layout.addWidget(self.table_container)
 
     def refresh_data(self):
-        """Memuat ulang semua data ruangan dari database Supabase dan memasukkannya ke tabel."""
+        """Memuat ulang semua data ruangan dari database Supabase secara asinkron."""
+        if hasattr(self, 'worker') and self.worker.isRunning():
+            return
+            
         self.table.setRowCount(0)
-        
-        try:
-            supabase = get_supabase_client()
-            rooms_data = supabase.table('ruangan').select()
+        from utils.worker import Worker
+        self.worker = Worker(self._fetch_rooms_worker)
+        self.worker.finished.connect(self._on_rooms_fetched)
+        self.worker.error.connect(self._on_error)
+        self.worker.start()
+
+    def _fetch_rooms_worker(self):
+        from api.supabase import get_supabase_client
+        supabase = get_supabase_client()
+        rooms_data = supabase.table('ruangan').select()
+        if not rooms_data:
+            rooms_data = []
+        return sorted(rooms_data, key=lambda x: x.get('nama', ''))
+
+    def _on_error(self, err_msg):
+        QMessageBox.critical(self, "Database Error", f"Gagal memproses data!\n{err_msg}")
+
+    def _on_rooms_fetched(self, rooms_data):
+        self.table.setRowCount(0)
+        for row_idx, room in enumerate(rooms_data):
+            self.table.insertRow(row_idx)
+            for c in range(self.table.columnCount()):
+                self.table.setItem(row_idx, c, QTableWidgetItem())
             
-            if not rooms_data:
-                rooms_data = []
-                
-            # Urutkan berdasarkan nama ruangan
-            rooms_data = sorted(rooms_data, key=lambda x: x.get('nama', ''))
+            # Kolom 0: Nama Ruangan (Bold)
+            nama_widget = QWidget()
+            nama_layout = QHBoxLayout(nama_widget)
+            nama_layout.setContentsMargins(16, 0, 16, 0)
+            nama_lbl = QLabel(str(room.get('nama', '-')))
+            nama_lbl.setStyleSheet("font-weight: 800; font-size: 14px; background-color: transparent;")
+            nama_layout.addWidget(nama_lbl)
+            nama_layout.setAlignment(Qt.AlignCenter)
+            self.table.setCellWidget(row_idx, 0, nama_widget)
             
-            for row_idx, room in enumerate(rooms_data):
-                self.table.insertRow(row_idx)
-                for c in range(self.table.columnCount()):
-                    self.table.setItem(row_idx, c, QTableWidgetItem())
+            # Kolom 1: Gedung
+            gedung_widget = QWidget()
+            gedung_layout = QHBoxLayout(gedung_widget)
+            gedung_layout.setContentsMargins(16, 0, 16, 0)
+            gedung_lbl = QLabel(str(room.get('gedung', '-')))
+            gedung_lbl.setStyleSheet("font-weight: 600; font-size: 13px; color: #6b6b80; background-color: transparent;")
+            gedung_layout.addWidget(gedung_lbl)
+            gedung_layout.setAlignment(Qt.AlignCenter)
+            self.table.setCellWidget(row_idx, 1, gedung_widget)
+            
+            # Kolom 2: Lantai
+            lantai = QTableWidgetItem(str(room.get('lantai', '-')))
+            lantai.setTextAlignment(Qt.AlignCenter)
+            self.table.setItem(row_idx, 2, lantai)
+            
+            # Kolom 3: Kapasitas
+            kapasitas_widget = QWidget()
+            kapasitas_layout = QHBoxLayout(kapasitas_widget)
+            kapasitas_layout.setContentsMargins(16, 0, 16, 0)
+            kapasitas_lbl = QLabel(f"{room.get('kapasitas', '-')} orang")
+            kapasitas_lbl.setStyleSheet("font-size: 13px; color: #8888a0; background-color: transparent;")
+            kapasitas_layout.addWidget(kapasitas_lbl)
+            kapasitas_layout.setAlignment(Qt.AlignCenter)
+            self.table.setCellWidget(row_idx, 3, kapasitas_widget)
+            
+            # Kolom 4: Status (Badge)
+            status_val = str(room.get('status', 'Tersedia'))
+            if status_val in ("Digunakan", "Tidak Tersedia", "Nonaktif", "Maintenance"):
+                status_val = "Terpakai"
+            elif status_val == "Dosen":
+                status_val = "Terbooking"
+            
+            status_widget = QWidget()
+            status_layout = QHBoxLayout(status_widget)
+            status_layout.setContentsMargins(16, 0, 16, 0)
+            status_badge = QLabel(status_val)
+            
+            badge_class = "badge badge_available"
+            if status_val == "Terbooking":
+                badge_class = "badge badge_booked"
+            elif status_val == "Terpakai":
+                badge_class = "badge badge_in_use"
                 
-                # Column data
-                # Kolom 0: Nama Ruangan (Bold)
-                nama_widget = QWidget()
-                nama_layout = QHBoxLayout(nama_widget)
-                nama_layout.setContentsMargins(16, 0, 16, 0)
-                nama_lbl = QLabel(str(room.get('nama', '-')))
-                nama_lbl.setStyleSheet("font-weight: 800; font-size: 14px; background-color: transparent;")
-                nama_layout.addWidget(nama_lbl)
-                nama_layout.setAlignment(Qt.AlignCenter)
-                self.table.setCellWidget(row_idx, 0, nama_widget)
-                
-                # Kolom 1: Gedung
-                gedung_widget = QWidget()
-                gedung_layout = QHBoxLayout(gedung_widget)
-                gedung_layout.setContentsMargins(16, 0, 16, 0)
-                gedung_lbl = QLabel(str(room.get('gedung', '-')))
-                gedung_lbl.setStyleSheet("font-weight: 600; font-size: 13px; color: #6b6b80; background-color: transparent;")
-                gedung_layout.addWidget(gedung_lbl)
-                gedung_layout.setAlignment(Qt.AlignCenter)
-                self.table.setCellWidget(row_idx, 1, gedung_widget)
-                
-                # Kolom 2: Lantai
-                lantai = QTableWidgetItem(str(room.get('lantai', '-')))
-                lantai.setTextAlignment(Qt.AlignCenter)
-                self.table.setItem(row_idx, 2, lantai)
-                
-                # Kolom 3: Kapasitas
-                kapasitas_widget = QWidget()
-                kapasitas_layout = QHBoxLayout(kapasitas_widget)
-                kapasitas_layout.setContentsMargins(16, 0, 16, 0)
-                kapasitas_lbl = QLabel(f"{room.get('kapasitas', '-')} orang")
-                kapasitas_lbl.setStyleSheet("font-size: 13px; color: #8888a0; background-color: transparent;")
-                kapasitas_layout.addWidget(kapasitas_lbl)
-                kapasitas_layout.setAlignment(Qt.AlignCenter)
-                self.table.setCellWidget(row_idx, 3, kapasitas_widget)
-                
-                # Kolom 4: Status (Badge)
-                status_val = str(room.get('status', 'Tersedia'))
-                if status_val in ("Digunakan", "Tidak Tersedia", "Nonaktif", "Maintenance"):
-                    status_val = "Terpakai"
-                elif status_val == "Dosen":
-                    status_val = "Terbooking"
-                
-                status_widget = QWidget()
-                status_layout = QHBoxLayout(status_widget)
-                status_layout.setContentsMargins(16, 0, 16, 0)
-                status_badge = QLabel(status_val)
-                
-                badge_class = "badge badge_available"
-                if status_val == "Terbooking":
-                    badge_class = "badge badge_booked"
-                elif status_val == "Terpakai":
-                    badge_class = "badge badge_in_use"
-                    
-                status_badge.setProperty("class", badge_class)
-                status_badge.setAlignment(Qt.AlignCenter)
-                status_layout.addWidget(status_badge)
-                status_layout.setAlignment(Qt.AlignCenter)
-                self.table.setCellWidget(row_idx, 4, status_widget)
-                
-                # Kolom 5: Fasilitas (Bisa panjang)
-                fasilitas_widget = QWidget()
-                fasilitas_layout = QHBoxLayout(fasilitas_widget)
-                fasilitas_layout.setContentsMargins(16, 0, 16, 0)
-                fasilitas_lbl = QLabel(str(room.get('fasilitas', '-')))
-                fasilitas_lbl.setStyleSheet("font-size: 12px; color: #6b6b80; background-color: transparent;")
-                fasilitas_lbl.setWordWrap(True)
-                fasilitas_layout.addWidget(fasilitas_lbl)
-                self.table.setCellWidget(row_idx, 5, fasilitas_widget)
-                
-                # Action Buttons
-                self._add_action_buttons(row_idx, room)
-                
-        except Exception as e:
-            print(f"Error loading admin data: {e}")
-            QMessageBox.critical(self, "Database Error", "Gagal mengambil data dari database Supabase!")
+            status_badge.setProperty("class", badge_class)
+            status_badge.setAlignment(Qt.AlignCenter)
+            status_layout.addWidget(status_badge)
+            status_layout.setAlignment(Qt.AlignCenter)
+            self.table.setCellWidget(row_idx, 4, status_widget)
+            
+            # Kolom 5: Fasilitas (Bisa panjang)
+            fasilitas_widget = QWidget()
+            fasilitas_layout = QHBoxLayout(fasilitas_widget)
+            fasilitas_layout.setContentsMargins(16, 0, 16, 0)
+            fasilitas_lbl = QLabel(str(room.get('fasilitas', '-')))
+            fasilitas_lbl.setStyleSheet("font-size: 12px; color: #6b6b80; background-color: transparent;")
+            fasilitas_lbl.setWordWrap(True)
+            fasilitas_layout.addWidget(fasilitas_lbl)
+            self.table.setCellWidget(row_idx, 5, fasilitas_widget)
+            
+            # Action Buttons
+            self._add_action_buttons(row_idx, room)
 
     def _add_action_buttons(self, row_idx, room):
         # Widget container untuk tombol aksi
@@ -216,7 +222,7 @@ class KelolaRuanganWidget(QWidget):
             self.refresh_data()
 
     def delete_room(self, room_data):
-        """Menghapus ruangan terpilih setelah konfirmasi."""
+        """Menghapus ruangan terpilih setelah konfirmasi secara asinkron."""
         room_name = room_data.get('nama', 'Ruangan')
         room_id = room_data.get('id')
         
@@ -227,19 +233,25 @@ class KelolaRuanganWidget(QWidget):
         )
         
         if reply == QMessageBox.Yes:
-            try:
-                supabase = get_supabase_client()
-                # Delete dari Supabase
-                res = supabase.table('ruangan').delete(f"id=eq.{room_id}")
+            if hasattr(self, 'delete_worker') and self.delete_worker.isRunning():
+                return
                 
-                if res is not None:
-                    QMessageBox.information(self, "Sukses", f"Ruangan '{room_name}' berhasil dihapus.")
-                    self.refresh_data()
-                else:
-                    QMessageBox.warning(self, "Gagal", "Gagal menghapus ruangan. Silakan coba lagi.")
-            except Exception as e:
-                print(f"Error deleting room: {e}")
-                QMessageBox.critical(self, "Error", f"Terjadi kesalahan saat menghapus data: {e}")
+            from utils.worker import Worker
+            self.delete_worker = Worker(self._delete_room_worker, room_id)
+            self.delete_worker.finished.connect(lambda res: self._on_delete_finished(res, room_name))
+            self.delete_worker.error.connect(self._on_error)
+            self.delete_worker.start()
+
+    def _delete_room_worker(self, room_id):
+        from api.supabase import get_supabase_client
+        return get_supabase_client().table('ruangan').delete(f"id=eq.{room_id}")
+
+    def _on_delete_finished(self, res, room_name):
+        if res is not None:
+            QMessageBox.information(self, "Sukses", f"Ruangan '{room_name}' berhasil dihapus.")
+            self.refresh_data()
+        else:
+            QMessageBox.warning(self, "Gagal", "Gagal menghapus ruangan. Silakan coba lagi.")
 
     def apply_theme(self):
         stylesheet = theme_manager.get_stylesheet()
@@ -381,33 +393,48 @@ class RoomFormDialog(QDialog):
             self.warning_lbl.show()
             return
             
-        try:
-            # Data payload
-            payload = {
-                "nama": nama,
-                "gedung": gedung,
-                "lantai": int(lantai_str),
-                "kapasitas": int(kapasitas_str),
-                "fasilitas": fasilitas,
-                "status": status
-            }
+        if hasattr(self, 'save_worker') and self.save_worker.isRunning():
+            return
             
-            supabase = get_supabase_client()
-            
-            if self.is_edit:
-                # Update database
-                room_id = self.room_data.get('id')
-                res = supabase.table('ruangan').update(payload, f"id=eq.{room_id}")
-            else:
-                # Insert database
-                res = supabase.table('ruangan').insert(payload)
-                
-            if res is not None:
-                self.accept()
-            else:
-                self.warning_lbl.setText("Gagal menyimpan data ke Supabase.")
-                self.warning_lbl.show()
-        except Exception as e:
-            print(f"Error saving room: {e}")
-            self.warning_lbl.setText(f"Error database: {e}")
+        self.save_btn.setEnabled(False)
+        self.save_btn.setText("Menyimpan...")
+        
+        # Data payload
+        payload = {
+            "nama": nama,
+            "gedung": gedung,
+            "lantai": int(lantai_str),
+            "kapasitas": int(kapasitas_str),
+            "fasilitas": fasilitas,
+            "status": status
+        }
+        
+        from utils.worker import Worker
+        room_id = self.room_data.get('id') if self.is_edit else None
+        self.save_worker = Worker(self._save_worker_func, payload, room_id)
+        self.save_worker.finished.connect(self._on_save_finished)
+        self.save_worker.error.connect(self._on_save_error)
+        self.save_worker.start()
+
+    def _save_worker_func(self, payload, room_id):
+        from api.supabase import get_supabase_client
+        supabase = get_supabase_client()
+        if room_id:
+            return supabase.table('ruangan').update(payload, f"id=eq.{room_id}")
+        else:
+            return supabase.table('ruangan').insert(payload)
+
+    def _on_save_finished(self, res):
+        self.save_btn.setEnabled(True)
+        self.save_btn.setText("Simpan")
+        if res is not None:
+            self.accept()
+        else:
+            self.warning_lbl.setText("Gagal menyimpan data ke Supabase.")
             self.warning_lbl.show()
+
+    def _on_save_error(self, err_msg):
+        self.save_btn.setEnabled(True)
+        self.save_btn.setText("Simpan")
+        self.warning_lbl.setText(f"Error database: {err_msg}")
+        self.warning_lbl.show()

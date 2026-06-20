@@ -181,56 +181,51 @@ class KelolaReservasiWidget(QWidget):
 
     # ─── DATA LOADING ────────────────────────────
     def load_data(self, filter_override=None):
-        """Memuat data reservasi dari Supabase dengan join ke pengguna & ruangan."""
+        """Memuat data reservasi dari Supabase secara asinkron."""
+        if hasattr(self, 'worker') and self.worker.isRunning():
+            return
+            
         self.table.setRowCount(0)
         active_filter = filter_override or self._current_filter
+        
+        from utils.worker import Worker
+        self.worker = Worker(self._fetch_reservasi_worker, active_filter)
+        self.worker.finished.connect(self._on_reservasi_fetched)
+        self.worker.error.connect(self._on_error)
+        self.worker.start()
 
-        try:
-            supabase = get_supabase_client()
+    def _fetch_reservasi_worker(self, active_filter):
+        from api.supabase import get_supabase_client
+        supabase = get_supabase_client()
+        query = "*,pengguna(nama,role),ruangan(nama)"
+        filters = ""
+        if active_filter == "Pending":
+            filters = "status=eq.Pending"
+        elif active_filter == "Riwayat":
+            filters = "status=in.(Selesai,Ditolak,Dibatalkan)"
+            
+        result = supabase.table("reservasi").select(query, filters)
+        if not result:
+            result = []
+            
+        if active_filter == "Mahasiswa":
+            result = [r for r in result if r.get("pengguna", {}).get("role", "").lower() == "mahasiswa"]
+        elif active_filter == "Dosen":
+            result = [r for r in result if r.get("pengguna", {}).get("role", "").lower() == "dosen"]
+            
+        result.sort(key=lambda x: (x.get("tanggal", ""), x.get("jam_mulai", "")), reverse=True)
+        return result
 
-            # Base query: select with embedded resources (join)
-            query = "*,pengguna(nama,role),ruangan(nama)"
-            filters = ""
+    def _on_error(self, err_msg):
+        QMessageBox.critical(self, "Database Error", f"Gagal memproses data!\n{err_msg}")
 
-            if active_filter == "Mahasiswa":
-                # Fetch all then filter by role in Python (Supabase REST
-                # doesn't fully support filtering on nested resources)
-                pass
-            elif active_filter == "Dosen":
-                pass
-            elif active_filter == "Pending":
-                filters = "status=eq.Pending"
-            elif active_filter == "Riwayat":
-                filters = "status=in.(Selesai,Ditolak,Dibatalkan)"
-
-            result = supabase.table("reservasi").select(query, filters)
-
-            if not result:
-                result = []
-
-            # Client-side filter for role-based tabs
-            if active_filter == "Mahasiswa":
-                result = [r for r in result
-                          if r.get("pengguna", {}).get("role", "").lower() == "mahasiswa"]
-            elif active_filter == "Dosen":
-                result = [r for r in result
-                          if r.get("pengguna", {}).get("role", "").lower() == "dosen"]
-
-            # Sort by tanggal desc, then by jam_mulai desc
-            result.sort(key=lambda x: (x.get("tanggal", ""), x.get("jam_mulai", "")), reverse=True)
-
-            for row_idx, reservasi in enumerate(result):
-                self.table.insertRow(row_idx)
-                for c in range(self.table.columnCount()):
-                    self.table.setItem(row_idx, c, QTableWidgetItem())
-                self._populate_row(row_idx, reservasi)
-
-        except Exception as e:
-            print(f"Error loading reservasi: {e}")
-            QMessageBox.critical(
-                self, "Database Error",
-                "Gagal mengambil data reservasi dari database!"
-            )
+    def _on_reservasi_fetched(self, result):
+        self.table.setRowCount(0)
+        for row_idx, reservasi in enumerate(result):
+            self.table.insertRow(row_idx)
+            for c in range(self.table.columnCount()):
+                self.table.setItem(row_idx, c, QTableWidgetItem())
+            self._populate_row(row_idx, reservasi)
 
     def _populate_row(self, row_idx: int, r: dict):
         """Mengisi satu baris tabel dengan data reservasi."""
@@ -382,25 +377,30 @@ class KelolaReservasiWidget(QWidget):
             self._update_status(reservasi_id, "Ditolak")
 
     def _update_status(self, reservasi_id: int, new_status: str):
-        """Helper untuk update status reservasi."""
-        try:
-            supabase = get_supabase_client()
-            res = supabase.table("reservasi").update(
-                {"status": new_status},
-                f"id=eq.{reservasi_id}"
+        """Helper untuk update status reservasi secara asinkron."""
+        if hasattr(self, 'status_worker') and self.status_worker.isRunning():
+            return
+            
+        from utils.worker import Worker
+        self.status_worker = Worker(self._update_status_worker, reservasi_id, new_status)
+        self.status_worker.finished.connect(lambda res: self._on_status_finished(res, new_status))
+        self.status_worker.error.connect(self._on_error)
+        self.status_worker.start()
+
+    def _update_status_worker(self, reservasi_id, new_status):
+        from api.supabase import get_supabase_client
+        return get_supabase_client().table("reservasi").update({"status": new_status}, f"id=eq.{reservasi_id}")
+
+    def _on_status_finished(self, res, new_status):
+        if res is not None:
+            QMessageBox.information(
+                self, "Sukses",
+                f"Status reservasi berhasil diubah ke '{new_status}'."
             )
-            if res is not None:
-                QMessageBox.information(
-                    self, "Sukses",
-                    f"Status reservasi berhasil diubah ke '{new_status}'."
-                )
-                self.load_data()
-                self.data_changed.emit()
-            else:
-                QMessageBox.warning(self, "Gagal", "Gagal mengubah status reservasi.")
-        except Exception as e:
-            print(f"Error updating status: {e}")
-            QMessageBox.critical(self, "Error", f"Terjadi kesalahan: {e}")
+            self.load_data()
+            self.data_changed.emit()
+        else:
+            QMessageBox.warning(self, "Gagal", "Gagal mengubah status reservasi.")
 
     # ─── CRUD ────────────────────────────────────
     def open_form_dialog(self, default_ruangan_id=None):
@@ -418,7 +418,7 @@ class KelolaReservasiWidget(QWidget):
             self.data_changed.emit()
 
     def delete_reservasi(self, reservasi: dict):
-        """Hapus reservasi setelah konfirmasi."""
+        """Hapus reservasi setelah konfirmasi secara asinkron."""
         reservasi_id = reservasi.get("id")
         reply = QMessageBox.question(
             self, "Konfirmasi Hapus",
@@ -426,18 +426,25 @@ class KelolaReservasiWidget(QWidget):
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply == QMessageBox.Yes:
-            try:
-                supabase = get_supabase_client()
-                res = supabase.table("reservasi").delete(f"id=eq.{reservasi_id}")
-                if res is not None:
-                    QMessageBox.information(self, "Sukses", "Reservasi berhasil dihapus.")
-                    self.load_data()
-                    self.data_changed.emit()
-                else:
-                    QMessageBox.warning(self, "Gagal", "Gagal menghapus reservasi.")
-            except Exception as e:
-                print(f"Error deleting reservasi: {e}")
-                QMessageBox.critical(self, "Error", f"Terjadi kesalahan: {e}")
+            if hasattr(self, 'delete_worker') and self.delete_worker.isRunning():
+                return
+            from utils.worker import Worker
+            self.delete_worker = Worker(self._delete_reservasi_worker, reservasi_id)
+            self.delete_worker.finished.connect(self._on_delete_finished)
+            self.delete_worker.error.connect(self._on_error)
+            self.delete_worker.start()
+
+    def _delete_reservasi_worker(self, reservasi_id):
+        from api.supabase import get_supabase_client
+        return get_supabase_client().table("reservasi").delete(f"id=eq.{reservasi_id}")
+
+    def _on_delete_finished(self, res):
+        if res is not None:
+            QMessageBox.information(self, "Sukses", "Reservasi berhasil dihapus.")
+            self.load_data()
+            self.data_changed.emit()
+        else:
+            QMessageBox.warning(self, "Gagal", "Gagal menghapus reservasi.")
 
     def refresh_data(self):
         """Alias untuk load_data — dipanggil saat switch page."""
@@ -471,11 +478,6 @@ class ReservasiFormDialog(QDialog):
 
         self._build_ui()
         self._load_combo_data()
-
-        if self.is_edit:
-            self._load_reservasi_data()
-        elif self.default_ruangan_id:
-            self._preselect_ruangan(self.default_ruangan_id)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -584,21 +586,40 @@ class ReservasiFormDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def _load_combo_data(self):
-        """Muat list pengguna & ruangan dari DB ke combo box."""
-        try:
-            supabase = get_supabase_client()
+        """Muat list pengguna & ruangan dari DB ke combo box asinkron."""
+        self.combo_pengguna.addItem("Memuat...")
+        self.combo_ruangan.addItem("Memuat...")
+        
+        from utils.worker import Worker
+        self.combo_worker = Worker(self._fetch_combo_worker)
+        self.combo_worker.finished.connect(self._on_combo_fetched)
+        self.combo_worker.start()
 
-            pengguna_list = supabase.table("pengguna").select("id,nama,role") or []
-            for p in sorted(pengguna_list, key=lambda x: x.get("nama", "")):
-                display = f"{p.get('nama', '?')} ({p.get('role', '?')})"
-                self.combo_pengguna.addItem(display, p.get("id"))
+    def _fetch_combo_worker(self):
+        from api.supabase import get_supabase_client
+        supabase = get_supabase_client()
+        pengguna_list = supabase.table("pengguna").select("id,nama,role") or []
+        ruangan_list = supabase.table("ruangan").select("id,nama") or []
+        return {
+            "pengguna": sorted(pengguna_list, key=lambda x: x.get("nama", "")),
+            "ruangan": sorted(ruangan_list, key=lambda x: x.get("nama", ""))
+        }
 
-            ruangan_list = supabase.table("ruangan").select("id,nama") or []
-            for r in sorted(ruangan_list, key=lambda x: x.get("nama", "")):
-                self.combo_ruangan.addItem(r.get("nama", "?"), r.get("id"))
-
-        except Exception as e:
-            print(f"Error loading combo data: {e}")
+    def _on_combo_fetched(self, data):
+        self.combo_pengguna.clear()
+        self.combo_ruangan.clear()
+        
+        for p in data["pengguna"]:
+            display = f"{p.get('nama', '?')} ({p.get('role', '?')})"
+            self.combo_pengguna.addItem(display, p.get("id"))
+            
+        for r in data["ruangan"]:
+            self.combo_ruangan.addItem(r.get("nama", "?"), r.get("id"))
+            
+        if self.is_edit:
+            self._load_reservasi_data()
+        elif self.default_ruangan_id:
+            self._preselect_ruangan(self.default_ruangan_id)
 
     def _load_reservasi_data(self):
         """Pre-fill form untuk mode edit."""
@@ -678,77 +699,69 @@ class ReservasiFormDialog(QDialog):
             self._show_warning("Jam mulai harus lebih awal dari jam selesai!")
             return
 
-        # Validasi 3: cek konflik jadwal (hanya untuk status Disetujui)
+        if hasattr(self, 'save_worker') and self.save_worker.isRunning():
+            return
+            
+        self.save_btn.setEnabled(False)
+        self.save_btn.setText("Menyimpan...")
+        
+        from utils.worker import Worker
+        rid = self.reservasi_data.get("id") if self.is_edit else None
+        self.save_worker = Worker(self._save_reservasi_worker, ruangan_id, tanggal, jam_mulai, jam_selesai, status, payload, rid)
+        self.save_worker.finished.connect(self._on_save_finished)
+        self.save_worker.error.connect(self._on_save_error)
+        self.save_worker.start()
+
+    def _save_reservasi_worker(self, ruangan_id, tanggal, jam_mulai, jam_selesai, status, payload, rid):
+        from api.supabase import get_supabase_client
+        supabase = get_supabase_client()
+        
+        # Conflict check
         if status in ("Pending", "Disetujui"):
-            if self._check_conflict(ruangan_id, tanggal, jam_mulai, jam_selesai):
-                return  # warning sudah ditampilkan di _check_conflict
-
-        # Build payload
-        payload = {
-            "pengguna_id": pengguna_id,
-            "ruangan_id": ruangan_id,
-            "tanggal": tanggal,
-            "jam_mulai": jam_mulai,
-            "jam_selesai": jam_selesai,
-            "keperluan": keperluan,
-            "status": status,
-            "catatan_admin": catatan if catatan else None,
-        }
-
-        try:
-            supabase = get_supabase_client()
-
-            if self.is_edit:
-                rid = self.reservasi_data.get("id")
-                res = supabase.table("reservasi").update(payload, f"id=eq.{rid}")
-            else:
-                res = supabase.table("reservasi").insert(payload)
-
-            if res is not None:
-                self.accept()
-            else:
-                self._show_warning("Gagal menyimpan data ke database.")
-        except Exception as e:
-            print(f"Error saving reservasi: {e}")
-            self._show_warning(f"Error database: {e}")
-
-    def _check_conflict(self, ruangan_id, tanggal, jam_mulai, jam_selesai):
-        """
-        Cek overlap jadwal di ruangan yang sama pada tanggal yang sama
-        dengan reservasi berstatus Disetujui.
-        Return True jika ada konflik.
-        """
-        try:
-            supabase = get_supabase_client()
             existing = supabase.table("reservasi").select(
                 "id,jam_mulai,jam_selesai",
                 f"ruangan_id=eq.{ruangan_id}&tanggal=eq.{tanggal}&status=eq.Disetujui"
             )
-            if not existing:
-                return False
+            if existing:
+                for ex in existing:
+                    if rid and ex.get("id") == rid:
+                        continue
+                    ex_mulai = ex.get("jam_mulai", "00:00")
+                    ex_selesai = ex.get("jam_selesai", "00:00")
+                    if jam_mulai < ex_selesai and jam_selesai > ex_mulai:
+                        return {"success": False, "conflict": True, "conflict_data": (ex_mulai, ex_selesai, tanggal)}
+                        
+        if rid:
+            res = supabase.table("reservasi").update(payload, f"id=eq.{rid}")
+        else:
+            res = supabase.table("reservasi").insert(payload)
+            
+        if res is not None:
+            return {"success": True}
+        else:
+            return {"success": False, "conflict": False}
 
-            for ex in existing:
-                # Skip self saat edit
-                if self.is_edit and ex.get("id") == self.reservasi_data.get("id"):
-                    continue
+    def _on_save_finished(self, result):
+        self.save_btn.setEnabled(True)
+        self.save_btn.setText("Simpan")
+        
+        if result["success"]:
+            self.accept()
+        elif result.get("conflict"):
+            ex_mulai, ex_selesai, tanggal = result["conflict_data"]
+            QMessageBox.warning(
+                self, "Konflik Jadwal!",
+                f"Jadwal bentrok dengan reservasi yang sudah disetujui:\n"
+                f"Jam {ex_mulai} – {ex_selesai} pada {tanggal}.\n\n"
+                f"Silakan pilih jam lain."
+            )
+        else:
+            self._show_warning("Gagal menyimpan data ke database.")
 
-                ex_mulai = ex.get("jam_mulai", "00:00")
-                ex_selesai = ex.get("jam_selesai", "00:00")
-
-                # Overlap check: new_start < existing_end AND new_end > existing_start
-                if jam_mulai < ex_selesai and jam_selesai > ex_mulai:
-                    QMessageBox.warning(
-                        self, "Konflik Jadwal!",
-                        f"Jadwal bentrok dengan reservasi yang sudah disetujui:\n"
-                        f"Jam {ex_mulai} – {ex_selesai} pada {tanggal}.\n\n"
-                        f"Silakan pilih jam lain."
-                    )
-                    return True
-
-        except Exception as e:
-            print(f"Error checking conflict: {e}")
-
-        return False
+    def _on_save_error(self, err_msg):
+        self.save_btn.setEnabled(True)
+        self.save_btn.setText("Simpan")
+        self._show_warning(f"Error database: {err_msg}")
 
     def _show_warning(self, msg: str):
         self.warning_lbl.setText(msg)

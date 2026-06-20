@@ -1,4 +1,4 @@
-# ui/mahasiswa/peminjaman/dialog_reservasi.py
+# ui/dosen/peminjaman/dialog_reservasi.py
 
 import os
 import uuid
@@ -404,8 +404,8 @@ class DialogUpdateReservasi(QDialog):
 
 		day_of_week = tanggal_obj.dayOfWeek()
 		if 1 <= day_of_week <= 5:
-			if jam_mulai_obj < QTime(17, 0) or jam_selesai_obj > QTime(21, 0):
-				QMessageBox.warning(self, "Validasi", "Pada hari Senin - Jumat, mahasiswa hanya bisa meminjam ruangan antara pukul 17:00 hingga 21:00.")
+			if jam_mulai_obj < QTime(7, 0) or jam_selesai_obj > QTime(16, 0):
+				QMessageBox.warning(self, "Validasi", "Pada hari Senin - Jumat, dosen hanya bisa meminjam ruangan antara pukul 07:00 hingga 16:00.")
 				return
 
 		keperluan = (
@@ -517,7 +517,7 @@ class DialogUpdateReservasi(QDialog):
 # ==============================================================
 
 class DialogBuatReservasi(QDialog):
-	"""Dialog untuk membuat reservasi baru dari sisi mahasiswa."""
+	"""Dialog untuk membuat reservasi baru dari sisi dosen."""
 
 	def __init__(self, pengguna_id: int, ruangan_preselect: dict = None, parent=None):
 		super().__init__(parent)
@@ -725,8 +725,8 @@ class DialogBuatReservasi(QDialog):
 
 		day_of_week = tanggal_obj.dayOfWeek()
 		if 1 <= day_of_week <= 5:
-			if jam_mulai_obj < QTime(17, 0) or jam_selesai_obj > QTime(21, 0):
-				QMessageBox.warning(self, "Validasi", "Pada hari Senin - Jumat, mahasiswa hanya bisa meminjam ruangan antara pukul 17:00 hingga 21:00.")
+			if jam_mulai_obj < QTime(7, 0) or jam_selesai_obj > QTime(16, 0):
+				QMessageBox.warning(self, "Validasi", "Pada hari Senin - Jumat, dosen hanya bisa meminjam ruangan antara pukul 07:00 hingga 16:00.")
 				return
 
 		keperluan = self.keperluan_input.toPlainText().strip()

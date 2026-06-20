@@ -1,10 +1,11 @@
 from collections import Counter
+from datetime import datetime, timedelta, date
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QFrame
+    QFrame, QPushButton
 )
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QCursor
 
 import matplotlib
 matplotlib.use('QtAgg')
@@ -27,6 +28,7 @@ class StatistikWidget(QWidget):
         self.setObjectName("StatistikWidget")
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.is_dark = theme_manager.is_dark
+        self.all_data = []
         self._build_ui()
         self.refresh_data()
 
@@ -57,13 +59,11 @@ class StatistikWidget(QWidget):
         self.lbl_rejected = self._create_kpi_card(kpi_layout, "Ditolak/Dibatalkan", "0", "❌", "#ef4444")
         root.addLayout(kpi_layout)
 
-        # Charts Container
-        chart_layout = QHBoxLayout()
-        chart_layout.setSpacing(20)
+        # Charts Container - Row 1
+        chart_layout_top = QHBoxLayout()
+        chart_layout_top.setSpacing(20)
         
-        # Removing QGraphicsDropShadowEffect here as it causes frame drops
-
-        # Bar Chart Frame
+        # Bar Chart Frame (Top 5 Ruangan)
         bar_frame = QFrame()
         bar_frame.setObjectName("ChartFrame")
         bar_frame.setStyleSheet("QFrame#ChartFrame { background: rgba(100, 116, 139, 0.05); border-radius: 16px; border: 1px solid rgba(100, 116, 139, 0.1); }")
@@ -72,9 +72,9 @@ class StatistikWidget(QWidget):
         self.bar_canvas = MplCanvas(self, width=5, height=4, dpi=100)
         self.bar_canvas.setStyleSheet("background: transparent;")
         bar_layout.addWidget(self.bar_canvas)
-        chart_layout.addWidget(bar_frame, stretch=2)
+        chart_layout_top.addWidget(bar_frame, stretch=2)
 
-        # Pie Chart Frame
+        # Pie Chart Frame (Status)
         pie_frame = QFrame()
         pie_frame.setObjectName("ChartFrame")
         pie_frame.setStyleSheet("QFrame#ChartFrame { background: rgba(100, 116, 139, 0.05); border-radius: 16px; border: 1px solid rgba(100, 116, 139, 0.1); }")
@@ -83,9 +83,54 @@ class StatistikWidget(QWidget):
         self.pie_canvas = MplCanvas(self, width=4, height=4, dpi=100)
         self.pie_canvas.setStyleSheet("background: transparent;")
         pie_layout.addWidget(self.pie_canvas)
-        chart_layout.addWidget(pie_frame, stretch=1)
+        chart_layout_top.addWidget(pie_frame, stretch=1)
 
-        root.addLayout(chart_layout)
+        root.addLayout(chart_layout_top)
+        
+        # Charts Container - Row 2 (Hari Teramai)
+        self.current_date = datetime.now().date()
+        
+        hari_frame = QFrame()
+        hari_frame.setObjectName("ChartFrame")
+        hari_frame.setStyleSheet("QFrame#ChartFrame { background: rgba(100, 116, 139, 0.05); border-radius: 16px; border: 1px solid rgba(100, 116, 139, 0.1); }")
+        hari_layout = QVBoxLayout(hari_frame)
+        hari_layout.setContentsMargins(16, 16, 16, 16)
+        hari_layout.setSpacing(10)
+        
+        hari_header = QHBoxLayout()
+        self.lbl_hari_title = QLabel("Hari Teramai (Berdasarkan Minggu)")
+        self.lbl_hari_title.setStyleSheet("font-weight: bold; font-size: 16px;")
+        
+        self.btn_prev_week = QPushButton("<")
+        self.btn_prev_week.setFixedSize(32, 32)
+        self.btn_prev_week.setCursor(QCursor(Qt.PointingHandCursor))
+        self.btn_prev_week.setStyleSheet("background: #6366f1; color: white; border-radius: 8px; font-weight: bold; font-size: 16px;")
+        self.btn_prev_week.clicked.connect(self._prev_week)
+        
+        self.lbl_week_range = QLabel()
+        self.lbl_week_range.setAlignment(Qt.AlignCenter)
+        self.lbl_week_range.setStyleSheet("font-weight: bold; font-size: 14px; color: #6366f1; padding: 0 10px;")
+        self._update_week_label()
+        
+        self.btn_next_week = QPushButton(">")
+        self.btn_next_week.setFixedSize(32, 32)
+        self.btn_next_week.setCursor(QCursor(Qt.PointingHandCursor))
+        self.btn_next_week.setStyleSheet("background: #6366f1; color: white; border-radius: 8px; font-weight: bold; font-size: 16px;")
+        self.btn_next_week.clicked.connect(self._next_week)
+        
+        hari_header.addWidget(self.lbl_hari_title)
+        hari_header.addStretch()
+        hari_header.addWidget(self.btn_prev_week)
+        hari_header.addWidget(self.lbl_week_range)
+        hari_header.addWidget(self.btn_next_week)
+        
+        hari_layout.addLayout(hari_header)
+        
+        self.hari_canvas = MplCanvas(self, width=9, height=3, dpi=100)
+        self.hari_canvas.setStyleSheet("background: transparent;")
+        hari_layout.addWidget(self.hari_canvas)
+        
+        root.addWidget(hari_frame)
         
         self.apply_theme(self.is_dark)
 
@@ -95,8 +140,6 @@ class StatistikWidget(QWidget):
         frame.setStyleSheet(
             f"QFrame#StatKpiCard {{ background: rgba(100, 116, 139, 0.05); border-radius: 12px; border-bottom: 3px solid {accent_color}; }}"
         )
-        # Remove shadow to prevent frame drop
-
         layout = QHBoxLayout(frame)
         layout.setContentsMargins(20, 16, 20, 16)
         
@@ -122,13 +165,32 @@ class StatistikWidget(QWidget):
         parent_layout.addWidget(frame)
         return lbl_val
 
+    def _prev_week(self):
+        self.current_date -= timedelta(days=7)
+        self._update_week_label()
+        self._update_hari_chart()
+
+    def _next_week(self):
+        self.current_date += timedelta(days=7)
+        self._update_week_label()
+        self._update_hari_chart()
+
+    def _update_week_label(self):
+        start_of_week = self.current_date - timedelta(days=self.current_date.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        
+        fmt = "%d %b %Y"
+        self.lbl_week_range.setText(f"{start_of_week.strftime(fmt)} - {end_of_week.strftime(fmt)}")
+
     def refresh_data(self):
         try:
             db = get_supabase_client()
             data = db.table("reservasi").select("*, ruangan(nama)")
             
             if not data:
-                return
+                data = []
+            
+            self.all_data = data
 
             # Update KPIs
             total_res = len(data)
@@ -142,6 +204,7 @@ class StatistikWidget(QWidget):
             # Process Data for Charts
             self._update_pie_chart(data)
             self._update_bar_chart(data)
+            self._update_hari_chart()
 
         except Exception as e:
             print("Error loading statistik:", e)
@@ -153,38 +216,38 @@ class StatistikWidget(QWidget):
         labels = list(counts.keys())
         sizes = list(counts.values())
         
-        # Premium color palette
         color_map = {
-            'Disetujui': '#10b981',   # Emerald
-            'Ditolak': '#ef4444',     # Red
-            'Dibatalkan': '#f43f5e',  # Rose
-            'Pending': '#f59e0b',     # Amber
-            'Selesai': '#3b82f6'      # Blue
+            'Disetujui': '#10b981',
+            'Ditolak': '#ef4444',
+            'Dibatalkan': '#f43f5e',
+            'Pending': '#f59e0b',
+            'Selesai': '#3b82f6'
         }
         colors = [color_map.get(s, '#8b5cf6') for s in labels]
 
         self.pie_canvas.axes.clear()
-        
         text_color = '#f8fafc' if self.is_dark else '#0f172a'
         
-        # Make background entirely transparent to let QFrame show through
         self.pie_canvas.fig.patch.set_alpha(0.0)
         self.pie_canvas.axes.patch.set_alpha(0.0)
         
-        # Donut Chart via wedgeprops width
-        pie_result = self.pie_canvas.axes.pie(
-            sizes, labels=labels, colors=colors, autopct='%1.0f%%',
-            startangle=90, pctdistance=0.75,
-            textprops=dict(color=text_color, fontsize=10),
-            wedgeprops=dict(width=0.4, edgecolor='none')
-        )
-        
-        if len(pie_result) >= 3:
-            autotexts = pie_result[2]
-            for autotext in autotexts:
-                autotext.set_color('white')
-                autotext.set_weight('bold')
+        if not sizes:
+            self.pie_canvas.axes.text(0.5, 0.5, "Belum ada data", ha='center', va='center', color=text_color)
+            self.pie_canvas.axes.axis('off')
+        else:
+            pie_result = self.pie_canvas.axes.pie(
+                sizes, labels=labels, colors=colors, autopct='%1.0f%%',
+                startangle=90, pctdistance=0.75,
+                textprops=dict(color=text_color, fontsize=10),
+                wedgeprops=dict(width=0.4, edgecolor='none')
+            )
             
+            if len(pie_result) >= 3:
+                autotexts = pie_result[2]
+                for autotext in autotexts:
+                    autotext.set_color('white')
+                    autotext.set_weight('bold')
+                
         self.pie_canvas.axes.set_title("Status Reservasi", color=text_color, fontweight='bold', fontsize=14, pad=15)
         self.pie_canvas.fig.tight_layout()
         self.pie_canvas.draw()
@@ -203,32 +266,84 @@ class StatistikWidget(QWidget):
         values = [item[1] for item in top_5]
 
         self.bar_canvas.axes.clear()
-        
         text_color = '#f8fafc' if self.is_dark else '#0f172a'
-        bar_color = '#6366f1' # Indigo
+        bar_color = '#6366f1'
         
-        # Transparent background
         self.bar_canvas.fig.patch.set_alpha(0.0)
         self.bar_canvas.axes.patch.set_alpha(0.0)
         
-        # Create bars
-        bars = self.bar_canvas.axes.bar(labels, values, color=bar_color, width=0.5, edgecolor='none')
-        
-        # Add labels on top of bars
-        self.bar_canvas.axes.bar_label(bars, padding=3, color=text_color, fontweight='bold')
-        
-        self.bar_canvas.axes.set_title("Top 5 Ruangan Terpopuler", color=text_color, fontweight='bold', fontsize=14, pad=15)
-        self.bar_canvas.axes.tick_params(colors=text_color, bottom=False, left=False)
-        
-        # Clean up axes and spines
-        self.bar_canvas.axes.yaxis.set_visible(False) # Hide y-axis values completely
-        for spine in self.bar_canvas.axes.spines.values():
-            spine.set_visible(False)
+        if not values:
+            self.bar_canvas.axes.text(0.5, 0.5, "Belum ada data", ha='center', va='center', color=text_color)
+            self.bar_canvas.axes.axis('off')
+        else:
+            bars = self.bar_canvas.axes.bar(labels, values, color=bar_color, width=0.5, edgecolor='none')
+            self.bar_canvas.axes.bar_label(bars, padding=3, color=text_color, fontweight='bold')
             
-        self.bar_canvas.axes.grid(axis='y', linestyle='--', alpha=0.05, color=text_color)
+            self.bar_canvas.axes.set_title("Top 5 Ruangan Terpopuler", color=text_color, fontweight='bold', fontsize=14, pad=15)
+            self.bar_canvas.axes.tick_params(colors=text_color, bottom=False, left=False)
+            
+            self.bar_canvas.axes.yaxis.set_visible(False)
+            for spine in self.bar_canvas.axes.spines.values():
+                spine.set_visible(False)
+                
+            self.bar_canvas.axes.grid(axis='y', linestyle='--', alpha=0.05, color=text_color)
             
         self.bar_canvas.fig.tight_layout()
         self.bar_canvas.draw()
+
+    def _update_hari_chart(self):
+        start_of_week = self.current_date - timedelta(days=self.current_date.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        
+        hari_counts = {
+            'Senin': 0, 'Selasa': 0, 'Rabu': 0, 'Kamis': 0,
+            'Jumat': 0, 'Sabtu': 0, 'Minggu': 0
+        }
+        hari_names = list(hari_counts.keys())
+        
+        for d in self.all_data:
+            tanggal_str = d.get("tanggal")
+            if tanggal_str:
+                try:
+                    dt = datetime.strptime(tanggal_str, "%Y-%m-%d").date()
+                    if start_of_week <= dt <= end_of_week:
+                        hari_idx = dt.weekday()
+                        hari_counts[hari_names[hari_idx]] += 1
+                except Exception:
+                    pass
+
+        labels = hari_names
+        values = [hari_counts[h] for h in labels]
+        
+        self.hari_canvas.axes.clear()
+        text_color = '#f8fafc' if self.is_dark else '#0f172a'
+        bar_color = '#10b981' # Emerald color for this new chart
+        
+        self.hari_canvas.fig.patch.set_alpha(0.0)
+        self.hari_canvas.axes.patch.set_alpha(0.0)
+        
+        # We always show 7 days even if 0
+        bars = self.hari_canvas.axes.bar(labels, values, color=bar_color, width=0.6, edgecolor='none')
+        
+        # Only add label if value > 0
+        for bar in bars:
+            height = bar.get_height()
+            if height > 0:
+                self.hari_canvas.axes.text(
+                    bar.get_x() + bar.get_width()/2., height + 0.1,
+                    f'{int(height)}',
+                    ha='center', va='bottom',
+                    color=text_color, fontweight='bold'
+                )
+        
+        self.hari_canvas.axes.tick_params(colors=text_color, bottom=False, left=False)
+        self.hari_canvas.axes.yaxis.set_visible(False)
+        for spine in self.hari_canvas.axes.spines.values():
+            spine.set_visible(False)
+            
+        self.hari_canvas.axes.grid(axis='y', linestyle='--', alpha=0.05, color=text_color)
+        self.hari_canvas.fig.tight_layout()
+        self.hari_canvas.draw()
 
     def apply_theme(self, is_dark: bool):
         self.is_dark = is_dark
@@ -238,5 +353,13 @@ class StatistikWidget(QWidget):
         self.lbl_title.setStyleSheet(f"font-size: 24px; font-weight: 900; color: {text_h};")
         self.lbl_subtitle.setStyleSheet(f"font-size: 14px; color: {text_m};")
         
-        # We need to refresh charts to apply new theme colors
+        if self.is_dark:
+            self.btn_prev_week.setStyleSheet("background: #4f46e5; color: white; border-radius: 8px; font-weight: bold; font-size: 16px;")
+            self.btn_next_week.setStyleSheet("background: #4f46e5; color: white; border-radius: 8px; font-weight: bold; font-size: 16px;")
+            self.lbl_week_range.setStyleSheet("font-weight: bold; font-size: 14px; color: #818cf8; padding: 0 10px;")
+        else:
+            self.btn_prev_week.setStyleSheet("background: #6366f1; color: white; border-radius: 8px; font-weight: bold; font-size: 16px;")
+            self.btn_next_week.setStyleSheet("background: #6366f1; color: white; border-radius: 8px; font-weight: bold; font-size: 16px;")
+            self.lbl_week_range.setStyleSheet("font-weight: bold; font-size: 14px; color: #4f46e5; padding: 0 10px;")
+            
         self.refresh_data()

@@ -212,69 +212,65 @@ class StatusRuanganView(QWidget):
                     self.clear_layout(item.layout())
 
     def refresh_data(self):
-        """Memperbarui data ruangan dari database Supabase dan merender kartu ruangan."""
+        """Memperbarui data ruangan dari database Supabase dan merender kartu ruangan secara asinkron."""
+        if hasattr(self, 'worker') and self.worker.isRunning():
+            return
         self.clear_layout(self.canvas_layout)
         self.cards = []
         self.rooms_raw = []
         
-        # Ambil filter status aktif
+        # Tampilkan indikator loading sederhana
+        loading_label = QLabel("Memuat data ruangan...")
+        loading_label.setAlignment(Qt.AlignCenter)
+        loading_label.setStyleSheet("font-size: 16px; color: #6b5e8a; padding: 20px;")
+        self.canvas_layout.addWidget(loading_label, 0, 0)
+        
         filter_text = getattr(self, 'current_filter', 'Semua')
-
-        # Fetch data dari Supabase
-        from api.supabase import get_supabase_client
-        supabase = get_supabase_client()
-        rooms_data = supabase.table('ruangan').select()
-        
-        if not rooms_data:
-            rooms_data = []
-        
-        # Fetch data reservasi hari ini untuk kalkulasi status
         today_str = datetime.now().strftime("%Y-%m-%d")
         current_time = datetime.now().strftime("%H:%M")
-        reservasi_data = supabase.table('reservasi').select("*", f"status=eq.Disetujui&tanggal=eq.{today_str}")
-        if not reservasi_data:
-            reservasi_data = []
-            
+
+        from utils.worker import Worker
+        self.worker = Worker(self._fetch_data_worker, filter_text, today_str, current_time)
+        self.worker.finished.connect(self._on_data_fetched)
+        self.worker.error.connect(self._on_data_error)
+        self.worker.start()
+
+    def _fetch_data_worker(self, filter_text, today_str, current_time):
+        from api.supabase import get_supabase_client
+        supabase = get_supabase_client()
+        rooms_data = supabase.table('ruangan').select() or []
+        reservasi_data = supabase.table('reservasi').select("*", f"status=eq.Disetujui&tanggal=eq.{today_str}") or []
+        
         room_reservations = {}
         for res in reservasi_data:
             rid = res.get('ruangan_id')
             if rid not in room_reservations:
                 room_reservations[rid] = []
             room_reservations[rid].append(res)
-        
+            
         counts = {"Tersedia": 0, "Terbooking": 0, "Terpakai": 0}
-        
         filtered_rooms = []
         upcoming_reservations = []
-        
-        # Deduplikasi ruangan berdasarkan nama agar tidak ganda di layar
+        rooms_raw = []
         seen_names = set()
         
         for r in rooms_data:
             name = r.get('nama', 'Unknown')
-            
-            # Lewati jika ruangan ini sudah ada
             if name in seen_names:
                 continue
             seen_names.add(name)
             
             rid = r.get('id')
-            gedung = r.get('gedung', 'Unknown')
-            lantai = r.get('lantai', 0)
-            kapasitas = r.get('kapasitas', 0)
-            
-            # Cek status dinamis berdasarkan reservasi
             base_status = r.get('status', 'Tersedia')
             status = "Tersedia"
             
             if base_status in ("Tidak Tersedia", "Nonaktif", "Maintenance"):
-                status = "Terpakai" # Override
+                status = "Terpakai"
             else:
                 res_for_room = room_reservations.get(rid, [])
                 for res in res_for_room:
                     jam_mulai = res.get('jam_mulai', '00:00')
                     jam_selesai = res.get('jam_selesai', '00:00')
-                    
                     if jam_mulai <= current_time <= jam_selesai:
                         status = "Terpakai"
                         break
@@ -282,12 +278,10 @@ class StatusRuanganView(QWidget):
                         if status != "Terpakai":
                             status = "Terbooking"
                         upcoming_reservations.append((res, name))
-            
-            # Hitung statistik dari database (sebelum difilter untuk visualisasi statistik)
+                        
             if status in counts:
                 counts[status] += 1
-            
-            # Filter check
+                
             match = False
             if filter_text == "Semua":
                 match = True
@@ -296,7 +290,7 @@ class StatusRuanganView(QWidget):
                 
             if not match:
                 continue
-            
+                
             badge_class = "badge_available"
             if status == "Terpakai":
                 badge_class = "badge_in_use"
@@ -305,7 +299,28 @@ class StatusRuanganView(QWidget):
                 
             filtered_rooms.append((name, status, badge_class))
             r['status'] = status
-            self.rooms_raw.append(r)
+            rooms_raw.append(r)
+            
+        return {
+            "filtered_rooms": filtered_rooms,
+            "upcoming_reservations": upcoming_reservations,
+            "counts": counts,
+            "rooms_raw": rooms_raw
+        }
+
+    def _on_data_error(self, error_msg):
+        self.clear_layout(self.canvas_layout)
+        error_label = QLabel(f"Gagal memuat data:\\n{error_msg}")
+        error_label.setAlignment(Qt.AlignCenter)
+        error_label.setStyleSheet("color: red; padding: 20px;")
+        self.canvas_layout.addWidget(error_label, 0, 0)
+
+    def _on_data_fetched(self, result):
+        self.clear_layout(self.canvas_layout)
+        filtered_rooms = result["filtered_rooms"]
+        upcoming_reservations = result["upcoming_reservations"]
+        counts = result["counts"]
+        self.rooms_raw = result["rooms_raw"]
         
         # Update label statistik
         if hasattr(self, 'stats_label'):

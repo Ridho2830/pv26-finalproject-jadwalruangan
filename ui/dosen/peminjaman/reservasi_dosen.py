@@ -1,6 +1,6 @@
-# ui/mahasiswa/peminjaman/reservasi_mahasiswa.py
+# ui/dosen/peminjaman/reservasi_dosen.py
 """
-Halaman "Peminjaman Saya" untuk mahasiswa.
+Halaman "Peminjaman Saya" untuk dosen.
 Versi redesign modern mengikuti UI dashboard pada ZIP.
 
 Fitur tetap:
@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
-from ui.mahasiswa.peminjaman.dialog_reservasi import DialogBuatReservasi, DialogSelesaiReservasi
+from ui.dosen.peminjaman.dialog_reservasi import DialogBuatReservasi, DialogSelesaiReservasi
 from utils.mode import theme_manager
 
 
@@ -43,8 +43,8 @@ STATUS_STYLE = {
 }
 
 
-class ReservasiMahasiswaPage(QWidget):
-    def __init__(self, pengguna_id: int, pengguna_nama: str = "Mahasiswa", parent=None):
+class ReservasiDosenPage(QWidget):
+    def __init__(self, pengguna_id: int, pengguna_nama: str = "Dosen", parent=None):
         super().__init__(parent)
 
         self.pengguna_id = pengguna_id

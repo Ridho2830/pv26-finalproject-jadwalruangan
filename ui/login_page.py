@@ -247,48 +247,69 @@ class LoginPage(QWidget):
             self.show_error("Username dan password tidak boleh kosong!")
             return
             
+        if hasattr(self, 'worker') and self.worker.isRunning():
+            return
+            
         self.submit_btn.setEnabled(False)
         self.submit_btn.setText("Memverifikasi...")
         
-        try:
-            supabase = get_supabase_client()
-            user_data = supabase.table('pengguna').select(filters=f"or=(username.eq.{username},nim_nip.eq.{username})")
+        from utils.worker import Worker
+        self.worker = Worker(self._fetch_login_worker, username, password)
+        self.worker.finished.connect(self._on_login_finished)
+        self.worker.error.connect(self._on_login_error)
+        self.worker.start()
+
+    def _fetch_login_worker(self, username, password):
+        from api.supabase import get_supabase_client
+        import bcrypt
+        supabase = get_supabase_client()
+        user_data = supabase.table('pengguna').select(filters=f"or=(username.eq.{username},nim_nip.eq.{username})")
+        
+        if not user_data:
+            return {"success": False, "error": "Username atau password salah!"}
             
-            if not user_data:
-                self.show_error("Username atau password salah!")
-                return
-                
-            user = user_data[0]
-            hashed_pw = user.get('password')
-            role = user.get('role', 'Mahasiswa')
-            is_active = user.get('is_active', True)
+        user = user_data[0]
+        hashed_pw = user.get('password')
+        is_active = user.get('is_active', True)
+        
+        if not is_active:
+            return {"success": False, "error": "Akun Anda telah dinonaktifkan!"}
             
-            if not is_active:
-                self.show_error("Akun Anda telah dinonaktifkan!")
-                return
-                
-            if bcrypt.checkpw(password.encode('utf-8'), hashed_pw.encode('utf-8')):
-                # Sukses Login -> Bersihkan form & Switch screen
-                self.username_input.clear()
-                self.password_input.clear()
-                parent_widget = self.parent()
-                
-                if parent_widget:
-                    if role == 'Admin':
-                        if hasattr(parent_widget, 'switch_to_admin'):
-                            parent_widget.switch_to_admin(user)
-                    else:
-                        # Mahasiswa dan Dosen
-                        if hasattr(parent_widget, 'switch_to_mahasiswa'):
-                            parent_widget.switch_to_mahasiswa(user)
+        if bcrypt.checkpw(password.encode('utf-8'), hashed_pw.encode('utf-8')):
+            return {"success": True, "user": user}
+        else:
+            return {"success": False, "error": "Username atau password salah!"}
+
+    def _on_login_error(self, err_msg):
+        self.submit_btn.setEnabled(True)
+        self.submit_btn.setText("Masuk")
+        self.show_error("Koneksi gagal! Periksa koneksi internet database Anda.")
+
+    def _on_login_finished(self, result):
+        self.submit_btn.setEnabled(True)
+        self.submit_btn.setText("Masuk")
+        
+        if not result["success"]:
+            self.show_error(result["error"])
+            return
+            
+        user = result["user"]
+        role = user.get('role', 'Mahasiswa')
+        
+        self.username_input.clear()
+        self.password_input.clear()
+        
+        parent_widget = self.parent()
+        if parent_widget:
+            if role == 'Admin':
+                if hasattr(parent_widget, 'switch_to_admin'):
+                    parent_widget.switch_to_admin(user)
+            elif role == 'Dosen':
+                if hasattr(parent_widget, 'switch_to_dosen'):
+                    parent_widget.switch_to_dosen(user)
             else:
-                self.show_error("Username atau password salah!")
-        except Exception as e:
-            print(f"Login error: {e}")
-            self.show_error("Koneksi gagal! Periksa koneksi internet database Anda.")
-        finally:
-            self.submit_btn.setEnabled(True)
-            self.submit_btn.setText("Masuk")
+                if hasattr(parent_widget, 'switch_to_mahasiswa'):
+                    parent_widget.switch_to_mahasiswa(user)
 
     def show_error(self, message):
         self.error_label.setText(message)

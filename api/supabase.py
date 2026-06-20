@@ -3,8 +3,9 @@ import requests
 
 class SupabaseClient:
     def __init__(self, url: str, key: str):
-        # Menghapus trailing slash jika ada dan menambahkan path REST API
-        self.url = url.rstrip('/') + "/rest/v1"
+        self.raw_url = url.rstrip('/')
+        # Menambahkan path REST API untuk table
+        self.url = self.raw_url + "/rest/v1"
         self.key = key
         self.headers = {
             "apikey": self.key,
@@ -12,6 +13,10 @@ class SupabaseClient:
             "Content-Type": "application/json",
             "Prefer": "return=representation"  # Agar mengembalikan data setelah insert/update
         }
+        self.storage = SupabaseStorage(self.raw_url, {
+            "apikey": self.key,
+            "Authorization": f"Bearer {self.key}"
+        })
 
     def table(self, table_name: str):
         return SupabaseTable(self.url, self.headers, table_name)
@@ -75,6 +80,41 @@ class SupabaseTable:
         except Exception as e:
             print(f"Error: {e}")
             return None
+
+class SupabaseStorageBucket:
+    def __init__(self, base_url: str, headers: dict, bucket_name: str):
+        self.base_url = base_url
+        self.headers = headers.copy()
+        self.bucket_name = bucket_name
+
+    def upload(self, path: str, file_bytes: bytes, file_options: dict = None):
+        """Upload file ke Supabase Storage (REST API)."""
+        url = f"{self.base_url}/storage/v1/object/{self.bucket_name}/{path}"
+        headers = self.headers.copy()
+        
+        if file_options and "content-type" in file_options:
+            headers["Content-Type"] = file_options["content-type"]
+        else:
+            headers["Content-Type"] = "application/octet-stream"
+            
+        if file_options and file_options.get("upsert", "false") == "true":
+            headers["x-upsert"] = "true"
+
+        response = requests.post(url, headers=headers, data=file_bytes)
+        response.raise_for_status()
+        return response.json()
+
+    def get_public_url(self, path: str):
+        """Mendapatkan public URL untuk file."""
+        return f"{self.base_url}/storage/v1/object/public/{self.bucket_name}/{path}"
+
+class SupabaseStorage:
+    def __init__(self, base_url: str, headers: dict):
+        self.base_url = base_url
+        self.headers = headers
+
+    def from_(self, bucket_name: str):
+        return SupabaseStorageBucket(self.base_url, self.headers, bucket_name)
 
 # Konfigurasi
 SUPABASE_URL = "https://gqeylubpnjewpqkswmqs.supabase.co"

@@ -4,6 +4,7 @@ from ui.index import StatusRuanganView
 from ui.login_page import LoginPage
 from ui.admin.dashboard import AdminDashboard
 from ui.mahasiswa.dashboard import MahasiswaPage
+from ui.dosen.dashboard import DosenPage
 
 class MainWindow(QStackedWidget):
     def __init__(self):
@@ -31,6 +32,7 @@ class MainWindow(QStackedWidget):
         self.login_page = LoginPage(self)
         self.admin_dashboard = AdminDashboard(self)
         self.mahasiswa_page = None
+        self.dosen_page = None
         
         # Tambah ke stacked widget
         self.addWidget(self.public_view)      # Index 0
@@ -75,6 +77,22 @@ class MainWindow(QStackedWidget):
         )
         self.addWidget(self.mahasiswa_page)
         self.setCurrentWidget(self.mahasiswa_page)
+
+    def switch_to_dosen(self, user: dict):
+        pengguna_id   = user.get('id')
+        pengguna_nama = user.get('nama') or user.get('username', 'Pengguna')
+
+        if self.dosen_page is not None:
+            self.removeWidget(self.dosen_page)
+            self.dosen_page.deleteLater()
+
+        self.dosen_page = DosenPage(
+            pengguna_id=pengguna_id,
+            pengguna_nama=pengguna_nama,
+            parent=self
+        )
+        self.addWidget(self.dosen_page)
+        self.setCurrentWidget(self.dosen_page)
 
 def main():
     app = QApplication(sys.argv)

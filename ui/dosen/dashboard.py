@@ -1,6 +1,6 @@
-# ui/mahasiswa/dashboard_mahasiswa.py
+# ui/dosen/dashboard_dosen.py
 """
-Mahasiswa Dashboard - ReservasiKampus
+Dosen Dashboard - ReservasiKampus
 Desain mengikuti admin dashboard:
   - Sidebar dengan profile card, nav buttons, logout
   - Dashboard page dengan KPI cards, kalender bulanan
@@ -20,9 +20,9 @@ from utils.chatbot import ChatbotDialog
 from utils.detail_hari import DayDetailPopup
 from utils.mode import theme_manager
 
-from ui.mahasiswa.peminjaman.reservasi_mahasiswa import ReservasiMahasiswaPage
-from ui.mahasiswa.riwayat.riwayat_peminjaman import RiwayatPeminjamanPage
-from ui.mahasiswa.peminjaman.dialog_reservasi import DialogBuatReservasi
+from ui.dosen.peminjaman.reservasi_dosen import ReservasiDosenPage
+from ui.dosen.riwayat.riwayat_peminjaman import RiwayatPeminjamanPage
+from ui.dosen.peminjaman.dialog_reservasi import DialogBuatReservasi
 
 
 # ──────────────────────────────────────────────
@@ -126,7 +126,7 @@ class ClickableFrame(QFrame):
 # ──────────────────────────────────────────────
 #  MAHASISWA DASHBOARD
 # ──────────────────────────────────────────────
-class MahasiswaPage(QWidget):
+class DosenPage(QWidget):
     def __init__(self, pengguna_id, pengguna_nama, parent=None):
         super().__init__(parent)
 
@@ -168,7 +168,7 @@ class MahasiswaPage(QWidget):
         self.content_stack.addWidget(self.dashboard_page)
 
     def _build_peminjaman_page(self):
-        self.peminjaman_page = ReservasiMahasiswaPage(
+        self.peminjaman_page = ReservasiDosenPage(
             pengguna_id=self.pengguna_id,
             pengguna_nama=self.pengguna_nama
         )
@@ -216,9 +216,9 @@ class MahasiswaPage(QWidget):
 
         # ── Profile ──
         prof = QFrame()
-        prof.setObjectName("MhsProfile")
+        prof.setObjectName("DosenProfile")
         prof.setStyleSheet(
-            "QFrame#MhsProfile {"
+            "QFrame#DosenProfile {"
             "  background: rgba(255,255,255,0.07);"
             "  border: 1px solid rgba(255,255,255,0.1);"
             "  border-radius: 14px;"
@@ -252,7 +252,7 @@ class MahasiswaPage(QWidget):
         )
         self.lbl_profile_name.setMaximumWidth(120)
 
-        self.lbl_profile_role = QLabel("Mahasiswa")
+        self.lbl_profile_role = QLabel("Dosen")
         self.lbl_profile_role.setStyleSheet(
             "font-size: 10px; font-weight: 500; color: #94a3b8; background: transparent;"
         )
@@ -341,7 +341,7 @@ class MahasiswaPage(QWidget):
 
         # Top Bar
         top = QHBoxLayout()
-        self.lbl_page = QLabel("Dashboard Mahasiswa")
+        self.lbl_page = QLabel("Dashboard Dosen")
         self.lbl_page.setObjectName("PageTitle")
         top.addWidget(self.lbl_page)
         top.addStretch()
@@ -531,7 +531,7 @@ class MahasiswaPage(QWidget):
         self._render_monthly_calendar(month)
 
     def _on_dashboard_error(self, err):
-        print("Error loading mahasiswa dashboard data:", err)
+        print("Error loading dosen dashboard data:", err)
 
     def _render_monthly_calendar(self, target_month: int):
         self.clear_layout(self.grid_layout)
@@ -686,7 +686,7 @@ class MahasiswaPage(QWidget):
 
     def show_chatbot(self):
         if not hasattr(self, "_chatbot") or self._chatbot is None:
-            self._chatbot = ChatbotDialog(self, is_dark=self.is_dark, role="Mahasiswa")
+            self._chatbot = ChatbotDialog(self, is_dark=self.is_dark, role="Dosen")
         self._chatbot.show()
         self._chatbot.raise_()
         self._chatbot.activateWindow()

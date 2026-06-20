@@ -1,6 +1,6 @@
-# ui/mahasiswa/riwayat/riwayat_peminjaman.py
+# ui/dosen/riwayat/riwayat_peminjaman.py
 """
-Halaman Riwayat Peminjaman untuk mahasiswa.
+Halaman Riwayat Peminjaman untuk dosen.
 
 Menampilkan semua reservasi milik user yang sudah selesai (status final):
 Selesai, Ditolak, Dibatalkan.
@@ -48,7 +48,7 @@ STATUS_STYLE = {
 
 
 class RiwayatPeminjamanPage(QWidget):
-    def __init__(self, pengguna_id: int, pengguna_nama: str = "Mahasiswa", parent=None):
+    def __init__(self, pengguna_id: int, pengguna_nama: str = "Dosen", parent=None):
         super().__init__(parent)
 
         self.pengguna_id   = pengguna_id

@@ -816,6 +816,8 @@ class AdminDashboard(QWidget):
 
     # ─── DATA & RENDERING ───────────────────────
     def refresh_data(self):
+        if hasattr(self, 'worker') and self.worker.isRunning():
+            return
         try:
             year = int(self.cb_year.currentText())
             month = self.cb_month.currentIndex() + 1
@@ -825,30 +827,47 @@ class AdminDashboard(QWidget):
             cal = calendar.Calendar(firstweekday=6)
             self.current_month_dates = cal.monthdatescalendar(year, month)
             
-            supabase = get_supabase_client()
-            rooms = supabase.table("ruangan").select() or []
-            users = supabase.table("pengguna").select() or []
-            
-            self.room_map = {r["id"]: r for r in rooms}
-            
-            self.kpi_rooms.set_value(str(len(set([r["nama"] for r in rooms]))))
-            self.kpi_users.set_value(str(len(users)))
-            
-            # Fetch reservations for the entire date range shown on the calendar
             start_date = self.current_month_dates[0][0]
             end_date = self.current_month_dates[-1][-1]
-            
-            reservations = supabase.table("reservasi").select(
-                "*,pengguna(role,nama)", f"tanggal=gte.{start_date}&tanggal=lte.{end_date}&status=eq.Disetujui"
-            )
-            self.current_month_reservations = reservations if isinstance(reservations, list) else []
-            self.kpi_active.set_value(str(len(self.current_month_reservations)))
-            self.kpi_konflik.set_value("0")
-            
-            self._render_monthly_calendar(month)
+
+            from utils.worker import Worker
+            self.worker = Worker(self._fetch_dashboard_data, start_date, end_date)
+            self.worker.finished.connect(lambda result: self._on_dashboard_data(result, month))
+            self.worker.error.connect(self._on_dashboard_error)
+            self.worker.start()
             
         except Exception as e:
-            print("Error loading dashboard data:", e)
+            print("Error parsing dates:", e)
+
+    def _fetch_dashboard_data(self, start_date, end_date):
+        from api.supabase import get_supabase_client
+        supabase = get_supabase_client()
+        rooms = supabase.table("ruangan").select() or []
+        users = supabase.table("pengguna").select() or []
+        reservations = supabase.table("reservasi").select(
+            "*,pengguna(role,nama)", f"tanggal=gte.{start_date}&tanggal=lte.{end_date}&status=eq.Disetujui"
+        )
+        return {
+            "rooms": rooms,
+            "users": users,
+            "reservations": reservations if isinstance(reservations, list) else []
+        }
+
+    def _on_dashboard_data(self, data, month):
+        rooms = data["rooms"]
+        users = data["users"]
+        self.current_month_reservations = data["reservations"]
+        self.room_map = {r["id"]: r for r in rooms}
+        
+        self.kpi_rooms.set_value(str(len(set([r["nama"] for r in rooms]))))
+        self.kpi_users.set_value(str(len(users)))
+        self.kpi_active.set_value(str(len(self.current_month_reservations)))
+        self.kpi_konflik.set_value("0")
+        
+        self._render_monthly_calendar(month)
+
+    def _on_dashboard_error(self, err):
+        print("Error loading admin dashboard data:", err)
 
     def _render_monthly_calendar(self, target_month: int):
         self.clear_layout(self.grid_layout)
