@@ -1013,6 +1013,9 @@ class AdminDashboard(QWidget):
         self._chatbot.activateWindow()
 
     def handle_logout(self):
-        p = self.parent()
-        if p and hasattr(p, "switch_to_public"):
-            p.switch_to_public()
+        parent_widget = self.parent()
+        while parent_widget is not None:
+            if hasattr(parent_widget, 'switch_to_public'):
+                parent_widget.switch_to_public()
+                return
+            parent_widget = parent_widget.parent()

@@ -693,5 +693,9 @@ class MahasiswaPage(QWidget):
 
     def handle_logout(self):
         """Kembali ke halaman login."""
-        if self.main_window and hasattr(self.main_window, 'switch_to_login'):
-            self.main_window.switch_to_login()
+        parent_widget = self.parent()
+        while parent_widget is not None:
+            if hasattr(parent_widget, 'switch_to_login'):
+                parent_widget.switch_to_login()
+                return
+            parent_widget = parent_widget.parent()

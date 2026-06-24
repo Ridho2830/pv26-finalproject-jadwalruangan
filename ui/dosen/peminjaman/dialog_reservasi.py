@@ -695,10 +695,37 @@ class DialogBuatReservasi(QDialog):
 		root.addLayout(btn_row)
 
 	# ==========================================================
-	# SUBMIT
+	# CEK BENTROK JADWAL
 	# ==========================================================
 
-	def _submit_reservasi(self):
+	def _cek_bentrok(self, ruangan_id, tanggal: str, jam_mulai: str, jam_selesai: str) -> list:
+		"""
+		Query Supabase: cari reservasi yang sama ruangan & tanggal,
+		status Disetujui/Aktif/Pending, dan jamnya tumpang tindih.
+		Return list konflik (kosong = aman).
+		"""
+		try:
+			data = self.supabase.table("reservasi").select(
+				"*,pengguna(nama,role)",
+				f"ruangan_id=eq.{ruangan_id}&tanggal=eq.{tanggal}"
+				f"&status=in.(Disetujui,Aktif,Pending)"
+			)
+			if not isinstance(data, list):
+				return []
+			konflik = []
+			for r in data:
+				r_mulai   = r.get("jam_mulai", "00:00")[:5]
+				r_selesai = r.get("jam_selesai", "00:00")[:5]
+				if jam_mulai < r_selesai and jam_selesai > r_mulai:
+					konflik.append(r)
+			return konflik
+		except Exception as e:
+			print(f"[cek_bentrok] Error: {e}")
+			return []
+
+	# ==========================================================
+	# SUBMIT
+	# ==========================================================
 		if not self.room_list:
 			QMessageBox.warning(self, "Validasi", "Tidak ada ruangan tersedia.")
 			return
@@ -732,6 +759,22 @@ class DialogBuatReservasi(QDialog):
 		keperluan = self.keperluan_input.toPlainText().strip()
 		if not keperluan:
 			QMessageBox.warning(self, "Validasi", "Keperluan wajib diisi.")
+			return
+
+		# ── CEK BENTROK JADWAL (real-time sebelum submit) ──
+		konflik = self._cek_bentrok(ruangan_id, tanggal, jam_mulai, jam_selesai)
+		if konflik:
+			detail = konflik[0]
+			nama_pemesan = (detail.get("pengguna") or {}).get("nama", "pengguna lain")
+			QMessageBox.warning(
+				self,
+				"Jadwal Bentrok",
+				f"⚠️  Ruangan sudah dipesan pada waktu tersebut!\n\n"
+				f"Dipesan oleh : {nama_pemesan}\n"
+				f"Jam          : {detail.get('jam_mulai','')[:5]} – {detail.get('jam_selesai','')[:5]}\n"
+				f"Keperluan    : {detail.get('keperluan','')}\n\n"
+				f"Silakan pilih waktu atau ruangan lain."
+			)
 			return
 
 		nama_ruangan = selected_room.get("nama", "Unknown")

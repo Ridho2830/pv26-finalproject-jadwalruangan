@@ -1,12 +1,28 @@
 import os
 import bcrypt
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap
+from PySide6.QtCore import Qt, QSize, QPointF, QRectF
+from PySide6.QtGui import QPixmap, QIcon, QColor
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                                QLineEdit, QPushButton, QFrame, QScrollArea, 
-                               QSizePolicy, QCheckBox)
+                               QSizePolicy, QCheckBox, QToolButton)
 from utils.mode import theme_manager
 from api.supabase import get_supabase_client
+
+def _make_eye_icon(visible: bool) -> QIcon:
+    import os
+    assets_dir = os.path.join(os.path.dirname(__file__), '..', 'assets', 'icon')
+    fname = "mata.png" if visible else "mata_garis.png"
+    img_path = os.path.normpath(os.path.join(assets_dir, fname))
+    pix = QPixmap(img_path).scaled(20, 20, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+    return QIcon(pix)
+
+
+def _make_checkmark_pixmap() -> QPixmap:
+    import os
+    assets_dir = os.path.join(os.path.dirname(__file__), '..', 'assets', 'icon')
+    img_path = os.path.normpath(os.path.join(assets_dir, "kotak_centang.png"))
+    return QPixmap(img_path).scaled(16, 16, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
 
 class LoginPage(QWidget):
     def __init__(self, parent=None):
@@ -55,14 +71,20 @@ class LoginPage(QWidget):
         self.left_panel = QFrame()
         self.left_panel.setObjectName("left_panel")
         self.left_panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.left_panel.setAttribute(Qt.WA_StyledBackground, True)
+        self.left_panel.setStyleSheet("QFrame#left_panel { background-color: #1a1625; } QFrame#left_panel * { background: transparent; }")
         
         layout = QVBoxLayout(self.left_panel)
         layout.setContentsMargins(60, 60, 60, 60)
         
         # Logo and brand
         brand_layout = QHBoxLayout()
-        logo = QLabel("🏢")
-        logo.setStyleSheet("font-size: 24px; background: transparent;")
+        logo = QLabel()
+        import os
+        logo_path = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'assets','icon' ,'logo.png'))
+        logo_pix = QPixmap(logo_path).scaled(36, 36, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        logo.setPixmap(logo_pix)
+        logo.setStyleSheet("background: transparent;")
         brand_text = QLabel("ReservasiKampus")
         brand_text.setStyleSheet("color: white; font-size: 20px; font-weight: bold; background: transparent;")
         brand_layout.addWidget(logo)
@@ -83,6 +105,7 @@ class LoginPage(QWidget):
             illustration.setStyleSheet("color: #4b5563; font-size: 24px;")
             
         illustration.setAlignment(Qt.AlignCenter)
+        illustration.setStyleSheet("background: transparent;")
         layout.addWidget(illustration)
         
         layout.addStretch()
@@ -92,17 +115,19 @@ class LoginPage(QWidget):
         title.setObjectName("left_title")
         title.setAlignment(Qt.AlignCenter)
         title.setWordWrap(True)
+        title.setStyleSheet("color: white; font-size: 24px; font-weight: bold; background: transparent; margin-top: 20px;")
         
         desc = QLabel("Kelola jadwal, pantau ketersediaan ruangan, dan optimalkan penggunaan fasilitas akademik dalam satu platform terintegrasi.")
         desc.setObjectName("left_desc")
         desc.setAlignment(Qt.AlignCenter)
         desc.setWordWrap(True)
+        desc.setStyleSheet("color: #a09eb0; font-size: 14px; background: transparent; margin-top: 10px;")
         
         layout.addWidget(title)
         layout.addWidget(desc)
         
         footer = QLabel("© 2024 Sistem Akademik Terpadu")
-        footer.setStyleSheet("color: #6b7280; font-size: 12px; margin-top: 40px;")
+        footer.setStyleSheet("color: #6b7280; font-size: 12px; margin-top: 40px; background: transparent;")
         footer.setAlignment(Qt.AlignLeft)
         layout.addWidget(footer)
         
@@ -148,22 +173,115 @@ class LoginPage(QWidget):
         
         pass_lbl = QLabel("Password")
         pass_lbl.setStyleSheet("color: #374151; font-size: 13px; font-weight: 500;")
+
+        # Password field + tombol mata dalam satu container
+        pass_container = QFrame()
+        pass_container.setFixedHeight(45)
+        pass_container.setStyleSheet("""
+            QFrame {
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                background-color: #f9fafb;
+            }
+            QFrame:focus-within {
+                border: 1px solid #00b8a9;
+                background-color: #ffffff;
+            }
+        """)
+        pass_h_layout = QHBoxLayout(pass_container)
+        pass_h_layout.setContentsMargins(10, 0, 6, 0)
+        pass_h_layout.setSpacing(0)
+
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("••••••••")
         self.password_input.setEchoMode(QLineEdit.Password)
-        self.password_input.setFixedHeight(45)
-        
+        self.password_input.setStyleSheet("""
+            QLineEdit {
+                border: none;
+                background: transparent;
+                color: #111827;
+                font-size: 14px;
+                padding: 0px;
+            }
+        """)
+
+        # Tombol mata
+        self.toggle_pass_btn = QToolButton()
+        self.toggle_pass_btn.setIcon(_make_eye_icon(False))
+        self.toggle_pass_btn.setIconSize(QSize(20, 20))
+        self.toggle_pass_btn.setFixedSize(32, 32)
+        self.toggle_pass_btn.setCursor(Qt.PointingHandCursor)
+        self.toggle_pass_btn.setCheckable(True)
+        self.toggle_pass_btn.setToolTip("Tampilkan / sembunyikan password")
+        self.toggle_pass_btn.setStyleSheet("""
+            QToolButton {
+                border: none;
+                background: transparent;
+                border-radius: 4px;
+            }
+            QToolButton:hover { background: rgba(0,0,0,0.05); }
+        """)
+        self.toggle_pass_btn.clicked.connect(self._toggle_password_visibility)
+
+        pass_h_layout.addWidget(self.password_input)
+        pass_h_layout.addWidget(self.toggle_pass_btn)
+
         self.username_input.returnPressed.connect(self.handle_login)
         self.password_input.returnPressed.connect(self.handle_login)
         
         # Checkbox & Forgot Password
         options_layout = QHBoxLayout()
         remember_cb = QCheckBox("Ingat sesi saya")
-        remember_cb.setStyleSheet("color: #4b5563; font-size: 13px;")
+        self._remember_cb = remember_cb
+
+        import os
+        assets_dir = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), '..', 'assets', 'icon')
+        )
+        kotak_path      = os.path.join(assets_dir, "kotak.png").replace("\\", "/")
+        kotak_centang_path = os.path.join(assets_dir, "kotak_centang.png").replace("\\", "/")
+
+        kotak_ada         = os.path.exists(kotak_path)
+        kotak_centang_ada = os.path.exists(kotak_centang_path)
+
+        # unchecked state
+        if kotak_ada:
+            unchecked_style = f'image: url("{kotak_path}"); border: none; background: transparent;'
+        else:
+            unchecked_style = "border: 1.5px solid #d1d5db; border-radius: 4px; background: #ffffff;"
+
+        # checked state
+        if kotak_centang_ada:
+            checked_style = f'image: url("{kotak_centang_path}"); border: none; background: transparent;'
+        else:
+            # fallback: gambar centang pakai QPainter, simpan ke temp
+            import tempfile
+            _tmp = os.path.join(tempfile.gettempdir(), "crsys_checkmark.png").replace("\\", "/")
+            _make_checkmark_pixmap().save(_tmp)
+            checked_style = f'image: url("{_tmp}"); border: none;'
+
+        remember_cb.setStyleSheet(f"""
+            QCheckBox {{
+                color: #4b5563;
+                font-size: 13px;
+                spacing: 8px;
+            }}
+            QCheckBox::indicator {{
+                width: 16px;
+                height: 16px;
+                {unchecked_style}
+            }}
+            QCheckBox::indicator:checked {{
+                width: 16px;
+                height: 16px;
+                {checked_style}
+            }}
+        """)
         
         forgot_btn = QPushButton("Lupa Password?")
         forgot_btn.setCursor(Qt.PointingHandCursor)
         forgot_btn.setStyleSheet("color: #00b8a9; font-size: 13px; background: transparent; border: none; text-align: right;")
+        forgot_btn.clicked.connect(self._handle_forgot_password)
         
         options_layout.addWidget(remember_cb)
         options_layout.addStretch()
@@ -172,7 +290,7 @@ class LoginPage(QWidget):
         form_layout.addWidget(user_lbl)
         form_layout.addWidget(self.username_input)
         form_layout.addWidget(pass_lbl)
-        form_layout.addWidget(self.password_input)
+        form_layout.addWidget(pass_container)
         form_layout.addLayout(options_layout)
         
         # Error Label
@@ -235,6 +353,15 @@ class LoginPage(QWidget):
         layout.addWidget(form_container)
         
         self.outer_layout.addWidget(scroll, stretch=1)
+
+    def _toggle_password_visibility(self, checked: bool):
+        """Toggle antara tampilkan dan sembunyikan password."""
+        if checked:
+            self.password_input.setEchoMode(QLineEdit.Normal)
+            self.toggle_pass_btn.setIcon(_make_eye_icon(True))   # mata terbuka
+        else:
+            self.password_input.setEchoMode(QLineEdit.Password)
+            self.toggle_pass_btn.setIcon(_make_eye_icon(False))  # mata + garis coret
 
     def handle_login(self):
         username = self.username_input.text().strip()
@@ -300,16 +427,17 @@ class LoginPage(QWidget):
         self.password_input.clear()
         
         parent_widget = self.parent()
-        if parent_widget:
-            if role == 'Admin':
-                if hasattr(parent_widget, 'switch_to_admin'):
-                    parent_widget.switch_to_admin(user)
-            elif role == 'Dosen':
-                if hasattr(parent_widget, 'switch_to_dosen'):
-                    parent_widget.switch_to_dosen(user)
-            else:
-                if hasattr(parent_widget, 'switch_to_mahasiswa'):
-                    parent_widget.switch_to_mahasiswa(user)
+        while parent_widget is not None:
+            if role == 'Admin' and hasattr(parent_widget, 'switch_to_admin'):
+                parent_widget.switch_to_admin(user)
+                return
+            elif role == 'Dosen' and hasattr(parent_widget, 'switch_to_dosen'):
+                parent_widget.switch_to_dosen(user)
+                return
+            elif role not in ('Admin', 'Dosen') and hasattr(parent_widget, 'switch_to_mahasiswa'):
+                parent_widget.switch_to_mahasiswa(user)
+                return
+            parent_widget = parent_widget.parent()
 
     def show_error(self, message):
         self.error_label.setText(message)
@@ -321,8 +449,21 @@ class LoginPage(QWidget):
         self.error_label.hide()
         
         parent_widget = self.parent()
-        if parent_widget and hasattr(parent_widget, 'switch_to_public'):
-            parent_widget.switch_to_public()
+        while parent_widget is not None:
+            if hasattr(parent_widget, 'switch_to_public'):
+                parent_widget.switch_to_public()
+                return
+            parent_widget = parent_widget.parent()
+
+    def _handle_forgot_password(self):
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.information(
+            self,
+            "Lupa Password",
+            "Silakan hubungi administrator kampus untuk mereset password Anda.\n\n"
+            "📧 admin@kampus.ac.id\n"
+            "📞 (0370) 123-456"
+        )
 
     def apply_theme(self):
         # We override the global theme for this specific page to keep its exact design

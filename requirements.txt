@@ -3,3 +3,5 @@ PySide6
 matplotlib
 bcrypt
 requests
+reportlab
+Pillow

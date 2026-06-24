@@ -98,9 +98,13 @@ class StatusRuanganView(QWidget):
 
     def _on_login_clicked(self):
         """Navigasi ke Halaman Login."""
+        # Cari parent yang punya switch_to_login (QStackedWidget membungkus MainWindow)
         parent_widget = self.parent()
-        if parent_widget and hasattr(parent_widget, 'switch_to_login'):
-            parent_widget.switch_to_login()
+        while parent_widget is not None:
+            if hasattr(parent_widget, 'switch_to_login'):
+                parent_widget.switch_to_login()
+                return
+            parent_widget = parent_widget.parent()
 
     def update_time(self):
         current_time = QDateTime.currentDateTime()
@@ -514,13 +518,9 @@ class StatusRuanganView(QWidget):
         footer_layout = QHBoxLayout(footer)
         footer_layout.setContentsMargins(24, 0, 24, 0)
         
-        contact_lbl = QLabel("📧 admin@kampus.ac.id  |  📞 (0370) 123-456  |  ❓ FAQ & Bantuan")
-        contact_lbl.setObjectName("footer_contact")
-        
         refresh_lbl = QLabel("AUTO-REFRESH ON")
         refresh_lbl.setStyleSheet("color: #cfbcff; font-weight: bold; background-color: transparent;")
         
-        footer_layout.addWidget(contact_lbl)
         footer_layout.addStretch()
         footer_layout.addWidget(refresh_lbl)
         

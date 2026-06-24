@@ -6,14 +6,15 @@ form CRUD, dan quick actions (setujui / tolak).
 """
 
 from datetime import date, datetime
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QUrl, QThread
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QDialog, QLineEdit,
     QComboBox, QFrame, QAbstractItemView, QDateEdit,
-    QTimeEdit
+    QTimeEdit, QScrollArea, QSizePolicy
 )
+from PySide6.QtGui import QDesktopServices, QPixmap
 from utils.mode import theme_manager
 from api.supabase import get_supabase_client
 
@@ -105,8 +106,30 @@ class KelolaReservasiWidget(QWidget):
         self.add_btn.setFixedHeight(38)
         self.add_btn.clicked.connect(lambda: self.open_form_dialog())
 
+        self.btn_export_csv = QPushButton("📄 Export CSV")
+        self.btn_export_csv.setCursor(Qt.PointingHandCursor)
+        self.btn_export_csv.setFixedHeight(38)
+        self.btn_export_csv.setStyleSheet(
+            "QPushButton{background:#0ea5e9;color:white;border:none;border-radius:8px;"
+            "padding:0 14px;font-weight:700;font-size:12px;}"
+            "QPushButton:hover{background:#0284c7;}"
+        )
+        self.btn_export_csv.clicked.connect(self._export_csv)
+
+        self.btn_export_pdf = QPushButton("📑 Export PDF")
+        self.btn_export_pdf.setCursor(Qt.PointingHandCursor)
+        self.btn_export_pdf.setFixedHeight(38)
+        self.btn_export_pdf.setStyleSheet(
+            "QPushButton{background:#ef4444;color:white;border:none;border-radius:8px;"
+            "padding:0 14px;font-weight:700;font-size:12px;}"
+            "QPushButton:hover{background:#dc2626;}"
+        )
+        self.btn_export_pdf.clicked.connect(self._export_pdf)
+
         header_bar.addWidget(header_title)
         header_bar.addStretch()
+        header_bar.addWidget(self.btn_export_csv)
+        header_bar.addWidget(self.btn_export_pdf)
         header_bar.addWidget(self.add_btn)
         self.main_layout.addLayout(header_bar)
 
@@ -152,7 +175,7 @@ class KelolaReservasiWidget(QWidget):
         header.setSectionResizeMode(6, QHeaderView.Interactive)       # Status
         header.setSectionResizeMode(7, QHeaderView.Interactive)       # Catatan
         header.setSectionResizeMode(8, QHeaderView.Fixed)             # Aksi
-        
+
         self.table.setColumnWidth(0, 160)
         self.table.setColumnWidth(1, 100)
         self.table.setColumnWidth(2, 140)
@@ -160,16 +183,16 @@ class KelolaReservasiWidget(QWidget):
         self.table.setColumnWidth(4, 110)
         self.table.setColumnWidth(6, 120)
         self.table.setColumnWidth(7, 160)
-        self.table.setColumnWidth(8, 260)
+        self.table.setColumnWidth(8, 310)
 
         self.table.verticalHeader().setDefaultSectionSize(56)
 
         self.table_container = QFrame()
 
         container_layout = QVBoxLayout(self.table_container)
-        container_layout.setContentsMargins(0,0,0,0)
+        container_layout.setContentsMargins(0, 0, 0, 0)
         container_layout.addWidget(self.table)
-        
+
         self.main_layout.addWidget(self.table_container)
 
     # ─── FILTER LOGIC ────────────────────────────
@@ -184,10 +207,10 @@ class KelolaReservasiWidget(QWidget):
         """Memuat data reservasi dari Supabase secara asinkron."""
         if hasattr(self, 'worker') and self.worker.isRunning():
             return
-            
+
         self.table.setRowCount(0)
         active_filter = filter_override or self._current_filter
-        
+
         from utils.worker import Worker
         self.worker = Worker(self._fetch_reservasi_worker, active_filter)
         self.worker.finished.connect(self._on_reservasi_fetched)
@@ -203,16 +226,16 @@ class KelolaReservasiWidget(QWidget):
             filters = "status=eq.Pending"
         elif active_filter == "Riwayat":
             filters = "status=in.(Selesai,Ditolak,Dibatalkan)"
-            
+
         result = supabase.table("reservasi").select(query, filters)
         if not result:
             result = []
-            
+
         if active_filter == "Mahasiswa":
             result = [r for r in result if r.get("pengguna", {}).get("role", "").lower() == "mahasiswa"]
         elif active_filter == "Dosen":
             result = [r for r in result if r.get("pengguna", {}).get("role", "").lower() == "dosen"]
-            
+
         result.sort(key=lambda x: (x.get("tanggal", ""), x.get("jam_mulai", "")), reverse=True)
         return result
 
@@ -220,6 +243,8 @@ class KelolaReservasiWidget(QWidget):
         QMessageBox.critical(self, "Database Error", f"Gagal memproses data!\n{err_msg}")
 
     def _on_reservasi_fetched(self, result):
+        self._last_reservasi_data = result  # simpan untuk export
+        self._active_filter = self._current_filter
         self.table.setRowCount(0)
         for row_idx, reservasi in enumerate(result):
             self.table.insertRow(row_idx)
@@ -336,6 +361,22 @@ class KelolaReservasiWidget(QWidget):
                 lambda _, rid=reservasi_id: self.quick_reject(rid))
             actions_l.addWidget(btn_reject)
 
+        # Tombol Dokumentasi hanya muncul kalau status Selesai dan ada foto
+        if status == "Selesai" and (
+            reservasi.get("foto_sebelum") or reservasi.get("foto_sesudah") or reservasi.get("foto_laporan")
+        ):
+            btn_dok = QPushButton("📸 Dokumentasi")
+            btn_dok.setCursor(Qt.PointingHandCursor)
+            btn_dok.setFixedHeight(26)
+            btn_dok.setStyleSheet(
+                "QPushButton{background:#6366f1;color:white;border:none;"
+                "border-radius:6px;padding:2px 10px;font-weight:700;font-size:11px;}"
+                "QPushButton:hover{background:#4f46e5;}"
+            )
+            btn_dok.clicked.connect(
+                lambda _, r=reservasi: self._show_dokumentasi(r))
+            actions_l.addWidget(btn_dok)
+
         # Edit & Hapus selalu ada
         btn_edit = QPushButton("✏️ Edit")
         btn_edit.setCursor(Qt.PointingHandCursor)
@@ -380,7 +421,7 @@ class KelolaReservasiWidget(QWidget):
         """Helper untuk update status reservasi secara asinkron."""
         if hasattr(self, 'status_worker') and self.status_worker.isRunning():
             return
-            
+
         from utils.worker import Worker
         self.status_worker = Worker(self._update_status_worker, reservasi_id, new_status)
         self.status_worker.finished.connect(lambda res: self._on_status_finished(res, new_status))
@@ -446,6 +487,61 @@ class KelolaReservasiWidget(QWidget):
         else:
             QMessageBox.warning(self, "Gagal", "Gagal menghapus reservasi.")
 
+    # ─── EXPORT ─────────────────────────────────────────────
+
+    def _get_current_data(self) -> list:
+        """Ambil data yang sedang ditampilkan di tabel (sesuai filter aktif)."""
+        return getattr(self, "_last_reservasi_data", [])
+
+    def _export_csv(self):
+        from utils.export import export_csv
+        from PySide6.QtWidgets import QFileDialog, QMessageBox
+        data = self._get_current_data()
+        if not data:
+            QMessageBox.information(self, "Export CSV", "Tidak ada data untuk diekspor.")
+            return
+        filepath, _ = QFileDialog.getSaveFileName(
+            self, "Simpan CSV", "laporan_reservasi.csv",
+            "CSV Files (*.csv)"
+        )
+        if not filepath:
+            return
+        try:
+            saved = export_csv(data, filepath)
+            QMessageBox.information(self, "Berhasil", f"File CSV berhasil disimpan:\n{saved}")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Gagal export CSV:\n{e}")
+
+    def _export_pdf(self):
+        from utils.export import export_pdf
+        from PySide6.QtWidgets import QFileDialog, QMessageBox
+        data = self._get_current_data()
+        if not data:
+            QMessageBox.information(self, "Export PDF", "Tidak ada data untuk diekspor.")
+            return
+        filepath, _ = QFileDialog.getSaveFileName(
+            self, "Simpan PDF", "laporan_reservasi.pdf",
+            "PDF Files (*.pdf)"
+        )
+        if not filepath:
+            return
+        try:
+            filter_info = getattr(self, "_active_filter", "Semua")
+            saved = export_pdf(data, filepath, filter_info=f"Status: {filter_info}")
+            QMessageBox.information(self, "Berhasil", f"File PDF berhasil disimpan:\n{saved}")
+        except ImportError as e:
+            QMessageBox.critical(
+                self, "Library Kurang",
+                f"{e}\n\nJalankan: pip install reportlab"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Gagal export PDF:\n{e}")
+
+    def _show_dokumentasi(self, reservasi: dict):
+        """Buka dialog foto dokumentasi dari tabel reservasi."""
+        dialog = DialogDokumentasi(reservasi, parent=self)
+        dialog.exec()
+
     def refresh_data(self):
         """Alias untuk load_data — dipanggil saat switch page."""
         self.load_data()
@@ -454,6 +550,229 @@ class KelolaReservasiWidget(QWidget):
         stylesheet = theme_manager.get_stylesheet()
         if stylesheet:
             self.setStyleSheet(stylesheet)
+
+
+# ──────────────────────────────────────────────
+#  DIALOG DOKUMENTASI FOTO
+# ──────────────────────────────────────────────
+class DialogDokumentasi(QDialog):
+    """
+    Dialog popup untuk melihat foto dokumentasi reservasi.
+    Mengambil data foto (foto_sebelum, foto_sesudah, foto_laporan)
+    langsung dari tabel reservasi di Supabase.
+    """
+
+    def __init__(self, reservasi: dict, parent=None):
+        super().__init__(parent)
+        self.reservasi = reservasi
+        self.setWindowTitle("📸 Foto Dokumentasi Reservasi")
+        self.setModal(True)
+
+        stylesheet = theme_manager.get_stylesheet()
+        if stylesheet:
+            self.setStyleSheet(stylesheet)
+
+        self._build_ui()
+
+        # Ukuran fixed — tidak bisa diperbesar maupun diperkecil
+        FIXED_W = 385
+        FIXED_H = 550
+        self.setFixedSize(FIXED_W, FIXED_H)
+
+        # Center terhadap parent window
+        if parent is not None:
+            parent_geo = parent.geometry()
+            cx = parent_geo.x() + (parent_geo.width()  - FIXED_W) // 2
+            cy = parent_geo.y() + (parent_geo.height() - FIXED_H) // 2
+            self.move(cx, cy)
+
+    def _build_ui(self):
+        layout = QVBoxLayout(self)
+        # ── Margin luar diperkecil agar konten punya lebih banyak ruang ──
+        layout.setContentsMargins(10, 12, 10, 12)
+        layout.setSpacing(10)
+
+        r = self.reservasi
+        pengguna = r.get("pengguna") or {}
+        ruangan  = r.get("ruangan") or {}
+
+        # ── Info reservasi ──
+        info_frame = QFrame()
+        info_frame.setObjectName("form_card")
+        info_frame.setProperty("class", "room_card")
+        info_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        info_l = QVBoxLayout(info_frame)
+        # ── Margin dalam diperkecil ──
+        info_l.setContentsMargins(10, 10, 10, 10)
+        info_l.setSpacing(8)
+
+        lbl_judul = QLabel("📷  Detail Dokumentasi")
+        lbl_judul.setAlignment(Qt.AlignCenter)
+        lbl_judul.setStyleSheet(
+            "font-size:16px; font-weight:800; background:transparent;"
+        )
+        info_l.addWidget(lbl_judul)
+
+        # Baris 1: Nama, Ruangan, Tanggal, Jam — semua 1 baris
+        row1 = QHBoxLayout()
+        row1.setSpacing(0)
+
+        def _meta(icon, text, stretch=1):
+            w = QWidget()
+            w.setStyleSheet("background:transparent;")
+            h = QHBoxLayout(w)
+            h.setContentsMargins(0, 0, 0, 0)
+            h.setSpacing(4)
+            ic = QLabel(icon)
+            ic.setStyleSheet("font-size:13px; background:transparent;")
+            ic.setFixedWidth(18)
+            tx = QLabel(str(text))
+            # ── font lebih kecil + NO word wrap agar tetap 1 baris ──
+            tx.setStyleSheet("font-size:11px; color:#94a3b8; background:transparent;")
+            tx.setWordWrap(False)
+            h.addWidget(ic)
+            h.addWidget(tx, stretch)
+            return w
+
+        jam = f"{str(r.get('jam_mulai',''))[:5]} – {str(r.get('jam_selesai',''))[:5]}"
+
+        row1.addWidget(_meta("👤", pengguna.get("nama", "-")), 1)
+        row1.addWidget(_meta("🏢", ruangan.get("nama", "-")), 1)
+        row1.addWidget(_meta("📅", r.get("tanggal", "-")), 1)
+        row1.addWidget(_meta("🕒", jam), 1)
+        info_l.addLayout(row1)
+        layout.addWidget(info_frame)
+
+        # ── Area foto (centered) ──
+        foto_frame = QFrame()
+        foto_frame.setObjectName("form_card")
+        foto_frame.setProperty("class", "room_card")
+        foto_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        foto_outer = QVBoxLayout(foto_frame)
+        foto_outer.setContentsMargins(12, 12, 12, 12)
+        foto_outer.setSpacing(0)
+
+        url_sebelum = r.get("foto_sebelum")
+        url_sesudah = r.get("foto_sesudah")
+        url_laporan = r.get("foto_laporan")
+
+        foto_row = QHBoxLayout()
+        foto_row.setSpacing(12)
+        foto_row.addLayout(self._foto_box("📸 Sebelum Pakai", url_sebelum), stretch=1)
+        foto_row.addLayout(self._foto_box("📸 Sesudah Pakai", url_sesudah), stretch=1)
+        if url_laporan:
+            foto_row.addLayout(self._foto_box("📋 Laporan", url_laporan), stretch=1)
+
+        foto_outer.addLayout(foto_row, stretch=1)
+
+        layout.addWidget(foto_frame, stretch=1)
+
+        # ── Catatan & Status ──
+        status = r.get("status", "-")
+        catatan = r.get("catatan_admin") or "-"
+
+        STATUS_COLOR = {
+            "Selesai":     ("background:#1e3a5f; color:#60a5fa; border:1px solid #3b82f6;"),
+            "Disetujui":   ("background:#14532d; color:#4ade80; border:1px solid #22c55e;"),
+            "Ada Masalah": ("background:#7f1d1d; color:#f87171; border:1px solid #ef4444;"),
+            "Ditolak":     ("background:#7f1d1d; color:#f87171; border:1px solid #ef4444;"),
+            "Menunggu":    ("background:#713f12; color:#fbbf24; border:1px solid #f59e0b;"),
+        }
+        status_style = STATUS_COLOR.get(
+            status,
+            "background:#1e293b; color:#94a3b8; border:1px solid #475569;"
+        )
+
+        status_row = QHBoxLayout()
+        status_row.setSpacing(8)
+        status_row.addStretch()
+
+        lbl_status_text = QLabel("Status:")
+        lbl_status_text.setStyleSheet("font-size:12px; color:#94a3b8; background:transparent;")
+        status_row.addWidget(lbl_status_text)
+
+        lbl_status_badge = QLabel(f" {status} ")
+        lbl_status_badge.setStyleSheet(
+            f"{status_style} font-size:12px; font-weight:700;"
+            f"border-radius:6px; padding:2px 10px;"
+        )
+        status_row.addWidget(lbl_status_badge)
+
+        lbl_sep = QLabel("|")
+        lbl_sep.setStyleSheet("font-size:12px; color:#475569; background:transparent;")
+        status_row.addWidget(lbl_sep)
+
+        lbl_catatan = QLabel(f"Catatan Admin: {catatan}")
+        lbl_catatan.setStyleSheet("font-size:12px; color:#94a3b8; background:transparent;")
+        status_row.addWidget(lbl_catatan)
+        status_row.addStretch()
+
+        layout.addLayout(status_row)
+
+        # ── Tombol tutup ──
+        btn_tutup = QPushButton("Tutup")
+        btn_tutup.setObjectName("cancel_btn")
+        btn_tutup.setCursor(Qt.PointingHandCursor)
+        btn_tutup.setFixedHeight(36)
+        btn_tutup.setFixedWidth(120)
+        btn_tutup.clicked.connect(self.accept)
+        layout.addWidget(btn_tutup, alignment=Qt.AlignHCenter)
+
+    def _foto_box(self, label: str, url: str | None) -> QVBoxLayout:
+        box = QVBoxLayout()
+        box.setSpacing(8)
+
+        lbl_title = QLabel(label)
+        lbl_title.setAlignment(Qt.AlignCenter)
+        lbl_title.setStyleSheet(
+            "font-size:12px; font-weight:700; color:#94a3b8; background:transparent;"
+        )
+        box.addWidget(lbl_title)
+
+        preview = QLabel()
+        preview.setMinimumHeight(200)
+        preview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        preview.setAlignment(Qt.AlignCenter)
+
+        if url:
+            preview.setText("🔗 Klik untuk\nbuka foto")
+            preview.setStyleSheet(
+                "background:rgba(79,70,229,0.10); border:2px solid #a5b4fc;"
+                "border-radius:12px; font-size:12px; color:#6366f1;"
+            )
+            preview.setCursor(Qt.PointingHandCursor)
+            preview.mousePressEvent = lambda e, u=url: QDesktopServices.openUrl(QUrl(u))
+
+            btn_buka = QPushButton("🌐 Buka di Browser")
+            btn_buka.setCursor(Qt.PointingHandCursor)
+            btn_buka.setFixedHeight(32)
+            btn_buka.setStyleSheet(
+                "QPushButton{background:#4f46e5;color:white;border:none;"
+                "border-radius:8px;font-size:11px;font-weight:700;padding:0 10px;}"
+                "QPushButton:hover{background:#4338ca;}"
+            )
+            btn_buka.clicked.connect(
+                lambda checked=False, u=url: QDesktopServices.openUrl(QUrl(u))
+            )
+            box.addWidget(preview, stretch=1)
+            box.addWidget(btn_buka, alignment=Qt.AlignCenter)
+        else:
+            preview.setText("—\nTidak ada\nfoto")
+            preview.setStyleSheet(
+                "background:rgba(100,116,139,0.07); border:2px dashed #475569;"
+                "border-radius:12px; font-size:12px; color:#64748b;"
+            )
+            box.addWidget(preview, stretch=1)
+            lbl_kosong = QLabel("Belum diupload")
+            lbl_kosong.setAlignment(Qt.AlignCenter)
+            lbl_kosong.setStyleSheet(
+                "font-size:10px; color:#64748b; background:transparent;"
+            )
+            box.addWidget(lbl_kosong, alignment=Qt.AlignCenter)
+
+        return box
 
 
 # ──────────────────────────────────────────────
@@ -589,7 +908,7 @@ class ReservasiFormDialog(QDialog):
         """Muat list pengguna & ruangan dari DB ke combo box asinkron."""
         self.combo_pengguna.addItem("Memuat...")
         self.combo_ruangan.addItem("Memuat...")
-        
+
         from utils.worker import Worker
         self.combo_worker = Worker(self._fetch_combo_worker)
         self.combo_worker.finished.connect(self._on_combo_fetched)
@@ -608,14 +927,14 @@ class ReservasiFormDialog(QDialog):
     def _on_combo_fetched(self, data):
         self.combo_pengguna.clear()
         self.combo_ruangan.clear()
-        
+
         for p in data["pengguna"]:
             display = f"{p.get('nama', '?')} ({p.get('role', '?')})"
             self.combo_pengguna.addItem(display, p.get("id"))
-            
+
         for r in data["ruangan"]:
             self.combo_ruangan.addItem(r.get("nama", "?"), r.get("id"))
-            
+
         if self.is_edit:
             self._load_reservasi_data()
         elif self.default_ruangan_id:
@@ -701,10 +1020,10 @@ class ReservasiFormDialog(QDialog):
 
         if hasattr(self, 'save_worker') and self.save_worker.isRunning():
             return
-            
+
         self.save_btn.setEnabled(False)
         self.save_btn.setText("Menyimpan...")
-        
+
         payload = {
             "pengguna_id": pengguna_id,
             "ruangan_id": ruangan_id,
@@ -715,7 +1034,7 @@ class ReservasiFormDialog(QDialog):
             "status": status,
             "catatan_admin": catatan
         }
-        
+
         from utils.worker import Worker
         rid = self.reservasi_data.get("id") if self.is_edit else None
         self.save_worker = Worker(self._save_reservasi_worker, ruangan_id, tanggal, jam_mulai, jam_selesai, status, payload, rid)
@@ -726,7 +1045,7 @@ class ReservasiFormDialog(QDialog):
     def _save_reservasi_worker(self, ruangan_id, tanggal, jam_mulai, jam_selesai, status, payload, rid):
         from api.supabase import get_supabase_client
         supabase = get_supabase_client()
-        
+
         # Conflict check
         if status in ("Pending", "Disetujui"):
             existing = supabase.table("reservasi").select(
@@ -741,12 +1060,12 @@ class ReservasiFormDialog(QDialog):
                     ex_selesai = ex.get("jam_selesai", "00:00")
                     if jam_mulai < ex_selesai and jam_selesai > ex_mulai:
                         return {"success": False, "conflict": True, "conflict_data": (ex_mulai, ex_selesai, tanggal)}
-                        
+
         if rid:
             res = supabase.table("reservasi").update(payload, f"id=eq.{rid}")
         else:
             res = supabase.table("reservasi").insert(payload)
-            
+
         if res is not None:
             return {"success": True}
         else:
@@ -755,7 +1074,7 @@ class ReservasiFormDialog(QDialog):
     def _on_save_finished(self, result):
         self.save_btn.setEnabled(True)
         self.save_btn.setText("Simpan")
-        
+
         if result["success"]:
             self.accept()
         elif result.get("conflict"):

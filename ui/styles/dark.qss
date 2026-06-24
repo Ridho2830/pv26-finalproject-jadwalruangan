@@ -759,3 +759,67 @@ QLabel#CardMeta { color: #94a3b8; font-size: 11px; background-color: transparent
     font-weight: 800;
     background-color: transparent;
 }
+
+/* ─── Menu Bar (menyatu dengan header) ─── */
+QMenuBar {
+    background-color: #0f0f18;
+    color: #8888a8;
+    border-bottom: none;
+    padding: 0px 8px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+QMenuBar::item {
+    background-color: transparent;
+    padding: 4px 10px;
+    border-radius: 4px;
+    color: #8888a8;
+}
+
+QMenuBar::item:selected {
+    background-color: rgba(0, 229, 204, 0.08);
+    color: #00e5cc;
+}
+
+QMenuBar::item:pressed {
+    background-color: rgba(0, 229, 204, 0.15);
+    color: #00e5cc;
+}
+
+QMenu {
+    background-color: #141420;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: #e8e8f0;
+    padding: 4px;
+}
+
+QMenu::item {
+    padding: 6px 20px 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+QMenu::item:selected {
+    background-color: rgba(0, 229, 204, 0.10);
+    color: #00e5cc;
+}
+
+QMenu::separator {
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.06);
+    margin: 3px 0;
+}
+
+/* ─── Status Bar (menyatu dengan footer) ─── */
+QStatusBar {
+    background-color: #0f0f18;
+    color: #8888a8;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 11px;
+}
+
+QStatusBar::item {
+    border: none;
+}

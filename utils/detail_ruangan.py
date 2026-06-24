@@ -174,6 +174,12 @@ class DetailRuanganPopup(QDialog):
         return "#22C55E"
         
     def _on_login_clicked(self):
-        """Handler saat tombol login diklik."""
-        print("Navigasi ke halaman login...")
+        """Handler saat tombol login diklik — tutup popup lalu navigasi ke login."""
         self.close()
+        # Cari MainWindow secara rekursif dari parent popup
+        parent_widget = self.parent()
+        while parent_widget is not None:
+            if hasattr(parent_widget, 'switch_to_login'):
+                parent_widget.switch_to_login()
+                return
+            parent_widget = parent_widget.parent()
