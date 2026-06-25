@@ -361,18 +361,30 @@ class KelolaReservasiWidget(QWidget):
                 lambda _, rid=reservasi_id: self.quick_reject(rid))
             actions_l.addWidget(btn_reject)
 
-        # Tombol Dokumentasi hanya muncul kalau status Selesai dan ada foto
-        if status == "Selesai" and (
-            reservasi.get("foto_sebelum") or reservasi.get("foto_sesudah") or reservasi.get("foto_laporan")
-        ):
+        # Tombol Dokumentasi — muncul kalau status Selesai (ada foto atau tidak)
+        if status == "Selesai":
+            has_foto = (
+                reservasi.get("foto_sebelum") or
+                reservasi.get("foto_sesudah") or
+                reservasi.get("foto_laporan")
+            )
             btn_dok = QPushButton("📸 Dokumentasi")
             btn_dok.setCursor(Qt.PointingHandCursor)
             btn_dok.setFixedHeight(26)
-            btn_dok.setStyleSheet(
-                "QPushButton{background:#6366f1;color:white;border:none;"
-                "border-radius:6px;padding:2px 10px;font-weight:700;font-size:11px;}"
-                "QPushButton:hover{background:#4f46e5;}"
-            )
+            if has_foto:
+                btn_dok.setStyleSheet(
+                    "QPushButton{background:#6366f1;color:white;border:none;"
+                    "border-radius:6px;padding:2px 10px;font-weight:700;font-size:11px;}"
+                    "QPushButton:hover{background:#4f46e5;}"
+                )
+            else:
+                # Abu-abu kalau belum ada foto
+                btn_dok.setStyleSheet(
+                    "QPushButton{background:#475569;color:#94a3b8;border:none;"
+                    "border-radius:6px;padding:2px 10px;font-weight:700;font-size:11px;}"
+                    "QPushButton:hover{background:#334155;}"
+                )
+                btn_dok.setToolTip("Belum ada foto dokumentasi")
             btn_dok.clicked.connect(
                 lambda _, r=reservasi: self._show_dokumentasi(r))
             actions_l.addWidget(btn_dok)
@@ -579,12 +591,14 @@ class DialogDokumentasi(QDialog):
         FIXED_H = 550
         self.setFixedSize(FIXED_W, FIXED_H)
 
-        # Center terhadap parent window
-        if parent is not None:
-            parent_geo = parent.geometry()
-            cx = parent_geo.x() + (parent_geo.width()  - FIXED_W) // 2
-            cy = parent_geo.y() + (parent_geo.height() - FIXED_H) // 2
-            self.move(cx, cy)
+    def showEvent(self, event):
+        """Center ke tengah layar saat dialog muncul."""
+        super().showEvent(event)
+        from PySide6.QtWidgets import QApplication
+        screen = QApplication.primaryScreen().availableGeometry()
+        cx = screen.x() + (screen.width()  - self.width())  // 2
+        cy = screen.y() + (screen.height() - self.height()) // 2
+        self.move(cx, cy)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -798,6 +812,15 @@ class ReservasiFormDialog(QDialog):
         self._build_ui()
         self._load_combo_data()
 
+    def showEvent(self, event):
+        """Center ke tengah layar saat dialog muncul."""
+        super().showEvent(event)
+        from PySide6.QtWidgets import QApplication
+        screen = QApplication.primaryScreen().availableGeometry()
+        cx = screen.x() + (screen.width()  - self.width())  // 2
+        cy = screen.y() + (screen.height() - self.height()) // 2
+        self.move(cx, cy)
+
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -811,7 +834,7 @@ class ReservasiFormDialog(QDialog):
         form_frame = QFrame()
         form_frame.setObjectName("form_card")
         form_frame.setProperty("class", "room_card")
-        form_frame.setStyleSheet("QFrame#form_card { padding: 16px; }")
+        form_frame.setStyleSheet("QFrame#form_card { padding: 16px; background-color: transparent; }")
 
         fl = QVBoxLayout(form_frame)
         fl.setSpacing(10)

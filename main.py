@@ -16,7 +16,7 @@ def _make_app_icon() -> QIcon:
     import os
     logo_path = os.path.join(os.path.dirname(__file__), "assets", "icon", "logo.png")
     if os.path.exists(logo_path):
-        return QIcon(logo_path)
+        return QIcon(logo_path) 
     return QIcon()
 
 

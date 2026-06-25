@@ -262,6 +262,14 @@ class PenggunaFormDialog(QDialog):
         if self.is_edit:
             self._load_user_data()
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        from PySide6.QtWidgets import QApplication
+        screen = QApplication.primaryScreen().availableGeometry()
+        cx = screen.x() + (screen.width()  - self.width())  // 2
+        cy = screen.y() + (screen.height() - self.height()) // 2
+        self.move(cx, cy)
+
     def _build_ui(self):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
@@ -277,7 +285,7 @@ class PenggunaFormDialog(QDialog):
         form_frame = QFrame()
         form_frame.setObjectName("form_card")
         form_frame.setProperty("class", "room_card") # Reusing same style class
-        form_frame.setStyleSheet("QFrame#form_card { padding: 16px; }")
+        form_frame.setStyleSheet("QFrame#form_card { padding: 16px; background-color: transparent; } QLabel { background-color: transparent; }")
         
         form_layout = QVBoxLayout(form_frame)
         form_layout.setSpacing(12)
