@@ -681,7 +681,7 @@ class AdminDashboard(QWidget):
         self.kpi_rooms   = KpiCard("Total Ruangan",    "0", "🏢", "#4f46e5")
         self.kpi_active  = KpiCard("Reservasi Bln Ini","0", "📅", "#0ea5e9")
         self.kpi_konflik = KpiCard("Konflik Bulan Ini","0", "⚠️", "#f97316")
-        self.kpi_users   = KpiCard("Total Pengguna",   "0", "👥", "#22c55e")
+        self.kpi_users   = KpiCard("Total Aktivitas",   "0", "👥", "#22c55e")
         for kpi in (self.kpi_rooms, self.kpi_active, self.kpi_konflik, self.kpi_users):
             kpi_row.addWidget(kpi)
         ml.addLayout(kpi_row)
@@ -869,7 +869,7 @@ class AdminDashboard(QWidget):
             end_date = self.current_month_dates[-1][-1]
 
             from utils.worker import Worker
-            self.worker = Worker(self._fetch_dashboard_data, start_date, end_date)
+            self.worker = Worker(self._fetch_dashboard_data, start_date.isoformat(), end_date.isoformat())
             self.worker.finished.connect(lambda result: self._on_dashboard_data(result, month))
             self.worker.error.connect(self._on_dashboard_error)
             self.worker.start()
@@ -877,13 +877,13 @@ class AdminDashboard(QWidget):
         except Exception as e:
             print("Error parsing dates:", e)
 
-    def _fetch_dashboard_data(self, start_date, end_date):
+    def _fetch_dashboard_data(self, start_date_str, end_date_str):
         from api.supabase import get_supabase_client
         supabase = get_supabase_client()
         rooms = supabase.table("ruangan").select() or []
         users = supabase.table("pengguna").select() or []
         reservations = supabase.table("reservasi").select(
-            "*,pengguna(role,nama)", f"tanggal=gte.{start_date}&tanggal=lte.{end_date}&status=eq.Disetujui"
+            "*,pengguna(role,nama)", f"tanggal=gte.{start_date_str}&tanggal=lte.{end_date_str}"
         )
         return {
             "rooms": rooms,
@@ -991,13 +991,21 @@ class AdminDashboard(QWidget):
                     nama_ruang = ruangan.get("nama", "Unknown")
                     jam = res.get("jam_mulai", "")[:5] # "08:00:00" -> "08:00"
                     
-                    role = res.get("pengguna", {}).get("role", "").lower()
-                    
-                    bg_color = "rgba(59,130,246,0.2)" if role == "dosen" else "rgba(34,197,94,0.2)"
-                    text_color = "#93c5fd" if role == "dosen" else "#86efac"
-                    if not self.is_dark:
-                        bg_color = "rgba(59,130,246,0.15)" if role == "dosen" else "rgba(34,197,94,0.15)"
-                        text_color = "#1e3a8a" if role == "dosen" else "#14532d"
+                    status = res.get("status", "Pending")
+
+                    # Warna berdasarkan status reservasi
+                    STATUS_COLOR_MAP = {
+                        "Disetujui":  ("rgba(34,197,94,0.25)",   "#86efac",  "rgba(34,197,94,0.15)",  "#14532d"),
+                        "Selesai":    ("rgba(100,116,139,0.25)", "#94a3b8",  "rgba(100,116,139,0.15)","#374151"),
+                        "Ditolak":    ("rgba(239,68,68,0.25)",   "#fca5a5",  "rgba(239,68,68,0.15)",  "#991b1b"),
+                        "Dibatalkan": ("rgba(239,68,68,0.25)",   "#fca5a5",  "rgba(239,68,68,0.15)",  "#991b1b"),
+                        "Pending":    ("rgba(249,115,22,0.25)",  "#fdba74",  "rgba(249,115,22,0.15)", "#7c2d12"),
+                    }
+                    dark_bg, dark_txt, light_bg, light_txt = STATUS_COLOR_MAP.get(
+                        status, STATUS_COLOR_MAP["Pending"]
+                    )
+                    bg_color   = dark_bg  if self.is_dark else light_bg
+                    text_color = dark_txt if self.is_dark else light_txt
                     
                     btn = QPushButton(f"{jam} {nama_ruang}")
                     btn.setCursor(QCursor(Qt.PointingHandCursor))

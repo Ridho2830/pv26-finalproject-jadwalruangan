@@ -493,7 +493,7 @@ class MahasiswaPage(QWidget):
             end_date = self.current_month_dates[-1][-1]
 
             from utils.worker import Worker
-            self.worker = Worker(self._fetch_dashboard_data, self.pengguna_id, start_date, end_date)
+            self.worker = Worker(self._fetch_dashboard_data, start_date.isoformat(), end_date.isoformat())
             self.worker.finished.connect(lambda result: self._on_dashboard_data(result, month))
             self.worker.error.connect(self._on_dashboard_error)
             self.worker.start()
@@ -501,17 +501,25 @@ class MahasiswaPage(QWidget):
         except Exception as e:
             print("Error parsing dates:", e)
 
-    def _fetch_dashboard_data(self, pengguna_id, start_date, end_date):
+    def _fetch_dashboard_data(self, start_date_str, end_date_str):
         from api.supabase import get_supabase_client
         supabase = get_supabase_client()
         rooms = supabase.table("ruangan").select() or []
-        reservations = supabase.table("reservasi").select(
+        # Ambil SEMUA reservasi bulan ini (tanpa filter pengguna_id)
+        all_res = supabase.table("reservasi").select(
             "*,pengguna(role,nama)",
-            f"pengguna_id=eq.{pengguna_id}&tanggal=gte.{start_date}&tanggal=lte.{end_date}"
+            f"tanggal=gte.{start_date_str}&tanggal=lte.{end_date_str}"
         )
+        if not isinstance(all_res, list):
+            all_res = []
+        # Filter di Python: hanya role Mahasiswa
+        reservations = [
+            r for r in all_res
+            if (r.get("pengguna") or {}).get("role", "").lower() == "mahasiswa"
+        ]
         return {
             "rooms": rooms,
-            "reservations": reservations if isinstance(reservations, list) else []
+            "reservations": reservations
         }
 
     def _on_dashboard_data(self, data, month):

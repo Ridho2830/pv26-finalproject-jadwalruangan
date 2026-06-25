@@ -531,27 +531,62 @@ class DialogBuatReservasi(QDialog):
 		self.resize(680, 560)
 		self.setModal(True)
 
-		self._load_rooms()
+		# Bangun UI dulu (dialog langsung muncul), load ruangan di background
 		self._build_ui()
 		self.apply_theme()
 		theme_manager.theme_changed.connect(self.apply_theme)
+		self._load_rooms_async()
 
 	# ==========================================================
-	# LOAD DATA
+	# LOAD DATA (async — tidak blocking UI)
 	# ==========================================================
 
-	def _load_rooms(self):
-		try:
-			data = self.supabase.table("ruangan").select()
-			if isinstance(data, list):
-				seen = set()
-				for r in data:
-					nama = r.get("nama", "")
-					if nama not in seen:
-						seen.add(nama)
-						self.room_list.append(r)
-		except Exception as e:
-			print(f"[DialogBuatReservasi] Error load ruangan: {e}")
+	def _load_rooms_async(self):
+		"""Load daftar ruangan di background thread agar dialog tidak freeze."""
+		self.room_combo.clear()
+		self.room_combo.addItem("⏳ Memuat ruangan...")
+		self.room_combo.setEnabled(False)
+
+		from utils.worker import Worker
+		self._room_worker = Worker(self._fetch_rooms_worker)
+		self._room_worker.finished.connect(self._on_rooms_loaded)
+		self._room_worker.error.connect(lambda e: self._on_rooms_error(e))
+		self._room_worker.start()
+
+	def _fetch_rooms_worker(self):
+		data = self.supabase.table("ruangan").select()
+		result = []
+		if isinstance(data, list):
+			seen = set()
+			for r in data:
+				nama = r.get("nama", "")
+				if nama not in seen:
+					seen.add(nama)
+					result.append(r)
+		return result
+
+	def _on_rooms_loaded(self, rooms):
+		self.room_list = rooms
+		self.room_combo.clear()
+		self.room_combo.setEnabled(True)
+		preselect_idx = 0
+		for i, r in enumerate(self.room_list):
+			nama = r.get("nama", "Unknown")
+			gedung = r.get("gedung", "-")
+			lantai = r.get("lantai", "-")
+			kap = r.get("kapasitas", 0)
+			label = f"{nama}  —  Gedung {gedung}, Lt. {lantai} ({kap} orang)"
+			self.room_combo.addItem(label, r)
+			if (self.ruangan_preselect
+					and r.get("id") == self.ruangan_preselect.get("id")):
+				preselect_idx = i
+		if self.room_list:
+			self.room_combo.setCurrentIndex(preselect_idx)
+
+	def _on_rooms_error(self, err):
+		self.room_combo.clear()
+		self.room_combo.addItem("❌ Gagal memuat ruangan")
+		print(f"[DialogBuatReservasi] Error load ruangan: {err}")
 
 	# ==========================================================
 	# UI
@@ -603,21 +638,7 @@ class DialogBuatReservasi(QDialog):
 		self.room_combo = QComboBox()
 		self.room_combo.setFixedHeight(40)
 
-		preselect_idx = 0
-		for i, r in enumerate(self.room_list):
-			nama = r.get("nama", "Unknown")
-			gedung = r.get("gedung", "-")
-			lantai = r.get("lantai", "-")
-			kap = r.get("kapasitas", 0)
-			label = f"{nama}  —  Gedung {gedung}, Lt. {lantai} ({kap} orang)"
-			self.room_combo.addItem(label, r)
-
-			if (self.ruangan_preselect
-					and r.get("id") == self.ruangan_preselect.get("id")):
-				preselect_idx = i
-
-		if self.room_list:
-			self.room_combo.setCurrentIndex(preselect_idx)
+		# Ruangan akan diisi oleh _on_rooms_loaded setelah async load selesai
 
 		room_layout.addWidget(room_title)
 		room_layout.addWidget(self.room_combo)
