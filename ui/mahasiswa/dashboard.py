@@ -1,12 +1,3 @@
-# ui/mahasiswa/dashboard_mahasiswa.py
-"""
-Mahasiswa Dashboard - ReservasiKampus
-Desain mengikuti admin dashboard:
-  - Sidebar dengan profile card, nav buttons, logout
-  - Dashboard page dengan KPI cards, kalender bulanan
-  - Sub-pages: Peminjaman Saya, Riwayat
-"""
-
 from PySide6.QtCore import Qt, QRect, Signal, QTimer
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,

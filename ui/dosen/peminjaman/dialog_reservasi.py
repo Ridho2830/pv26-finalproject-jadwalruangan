@@ -1,5 +1,3 @@
-# ui/dosen/peminjaman/dialog_reservasi.py
-
 import os
 import uuid
 import mimetypes

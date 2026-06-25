@@ -1,7 +1,6 @@
 import sys
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QStackedWidget,
-    QMenuBar, QStatusBar, QMenu
 )
 from PySide6.QtGui import QIcon, QAction
 from PySide6.QtCore import Qt
@@ -38,9 +37,11 @@ class MainWindow(QMainWindow):
         screen_geo = screen.availableGeometry()
         max_w = screen_geo.width()
         max_h = int(max_w * 9 / 16)
+        
         if max_h > screen_geo.height():
             max_h = screen_geo.height()
             max_w = int(max_h * 16 / 9)
+
         self.setMinimumSize(1024, 576)
         self.resize(max_w, max_h)
 

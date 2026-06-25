@@ -1,23 +1,3 @@
-"""
-ChatbotDialog — ReservasiKampus AI Assistant
-Design: matches admin_v2.py palette & language exactly.
-
-Layout:
-  ┌─────────────────────────────┐
-  │  Header (brand + close)     │
-  ├─────────────────────────────┤
-  │                             │
-  │  Message list (scroll)      │
-  │                             │
-  ├─────────────────────────────┤
-  │  Quick-prompt chips         │
-  ├─────────────────────────────┤
-  │  Input bar (text + send)    │
-  └─────────────────────────────┘
-
-Theming: pass is_dark=True/False from parent; default light.
-"""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -255,7 +235,7 @@ class OllamaWorker(QThread):
 
     def run(self):
         url = "http://localhost:11434/api/generate"
-        
+
         # Ambil data real-time dari Supabase
         db_context = ""
         try:

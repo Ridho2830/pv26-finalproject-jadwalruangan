@@ -1,13 +1,3 @@
-"""
-Admin Dashboard - ReservasiKampus
-Perbaikan utama:
-  - Avatar circular beneran pakai QPainter mask (bukan border-radius CSS yg nggak works di QLabel)
-  - Profile section layout lebih rapi & konsisten ukurannya
-  - set_user_profile pakai ukuran yang sama (36x36) seragam
-  - Fallback avatar pakai initial huruf kalau gambar nggak ada
-  - Minor polish: spacing, font weight
-"""
-
 import os
 from PySide6.QtCore import Qt, QSize, QRect, QPoint, Signal, QTimer
 from PySide6.QtWidgets import (

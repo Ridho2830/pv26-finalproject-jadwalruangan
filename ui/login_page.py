@@ -1,7 +1,7 @@
 import os
 import bcrypt
-from PySide6.QtCore import Qt, QSize, QPointF, QRectF
-from PySide6.QtGui import QPixmap, QIcon, QColor
+from PySide6.QtCore import Qt, QSize
+from PySide6.QtGui import QPixmap, QIcon
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                                QLineEdit, QPushButton, QFrame, QScrollArea, 
                                QSizePolicy, QCheckBox, QToolButton)

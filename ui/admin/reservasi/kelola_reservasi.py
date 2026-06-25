@@ -1,20 +1,13 @@
-"""
-Kelola Reservasi — Admin Dashboard ReservasiKampus
-===================================================
-Standalone widget: tabel reservasi dengan filter tabs,
-form CRUD, dan quick actions (setujui / tolak).
-"""
-
 from datetime import date, datetime
-from PySide6.QtCore import Qt, Signal, QUrl, QThread
+from PySide6.QtCore import Qt, Signal, QUrl
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QDialog, QLineEdit,
     QComboBox, QFrame, QAbstractItemView, QDateEdit,
-    QTimeEdit, QScrollArea, QSizePolicy
+    QTimeEdit, QSizePolicy
 )
-from PySide6.QtGui import QDesktopServices, QPixmap
+from PySide6.QtGui import QDesktopServices
 from utils.mode import theme_manager
 from api.supabase import get_supabase_client
 

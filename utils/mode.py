@@ -1,9 +1,3 @@
-"""
-ThemeManager — Singleton untuk mengelola dark/light mode di seluruh aplikasi.
-Menyimpan state tema saat ini dan menyediakan sinyal untuk memberitahu
-semua window ketika tema berubah.
-"""
-
 import os
 from PySide6.QtCore import QObject, Signal
 
@@ -11,7 +5,6 @@ from PySide6.QtCore import QObject, Signal
 class ThemeManager(QObject):
     """Singleton yang mengelola tema dark/light untuk seluruh aplikasi."""
     
-    # Sinyal yang di-emit ketika tema berubah, membawa nama tema ("dark"/"light")
     theme_changed = Signal(str)
     
     _instance = None

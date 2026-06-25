@@ -1,11 +1,11 @@
 from collections import Counter
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QFrame, QPushButton
 )
-from PySide6.QtGui import QColor, QCursor
+from PySide6.QtGui import QCursor
 
 import matplotlib
 matplotlib.use('QtAgg')

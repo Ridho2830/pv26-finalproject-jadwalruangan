@@ -1,20 +1,10 @@
-# ui/admin/foto/foto_dokumentasi_widget.py
-"""
-Halaman Lihat Foto Dokumentasi — Admin
-Fitur:
-  - Galeri foto per reservasi (sebelum & sesudah)
-  - Filter by ruangan dan tanggal
-  - Tombol hapus foto
-  - Tombol tandai reservasi 'Ada Masalah'
-"""
-
 from PySide6.QtCore import Qt, QUrl, QDate
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QScrollArea, QComboBox, QDateEdit, QMessageBox,
-    QGridLayout, QSizePolicy, QDialog
+    QGridLayout, QSizePolicy
 )
-from PySide6.QtGui import QPixmap, QDesktopServices, QCursor
+from PySide6.QtGui import  QDesktopServices, QCursor
 from api.supabase import get_supabase_client, get_storage_bucket
 from utils.mode import theme_manager
 

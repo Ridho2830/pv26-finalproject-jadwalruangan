@@ -22,8 +22,6 @@ class CubeWidget(QWidget):
         base_color = QColor(self.color_hex)
         by = 0.0  # Tidak ada animasi
         
-        # 1. Gambar Bayangan di Bawah (Drop Shadow) - Berada di lantai tetap (tidak ikut memantul)
-        # Ukuran & intensitas bayangan mengecil saat kubus melayang ke atas
         shadow_opacity = max(10, int(60 - abs(by) * 4))
         shadow_rx = max(15.0, 30.0 - abs(by) * 0.6)
         shadow_ry = max(5.0, 10.0 - abs(by) * 0.2)
@@ -36,11 +34,9 @@ class CubeWidget(QWidget):
         painter.setBrush(QBrush(shadow_gradient))
         painter.drawEllipse(QPoint(50, 85), shadow_rx, shadow_ry)
         
-        # Fungsi pembantu untuk koordinat titik kubus dengan offset animasi
         def pt(x, y):
             return QPoint(int(x), int(y + by))
             
-        # 2. Menggambar Sisi Atas (Top Face) - Terang (Lighting dari atas)
         top_poly = QPolygon([
             pt(50, 15),
             pt(88, 32),
@@ -58,7 +54,6 @@ class CubeWidget(QWidget):
         painter.setBrush(QBrush(top_grad))
         painter.drawPolygon(top_poly)
         
-        # 3. Menggambar Sisi Kiri (Left Face) - Medium (Lighting samping)
         left_poly = QPolygon([
             pt(12, 32),
             pt(50, 49),
@@ -76,7 +71,6 @@ class CubeWidget(QWidget):
         painter.setBrush(QBrush(left_grad))
         painter.drawPolygon(left_poly)
         
-        # 4. Menggambar Sisi Kanan (Right Face) - Paling gelap (Bayangan samping)
         right_poly = QPolygon([
             pt(50, 49),
             pt(88, 32),
@@ -94,6 +88,5 @@ class CubeWidget(QWidget):
         painter.setBrush(QBrush(right_grad))
         painter.drawPolygon(right_poly)
         
-        # Explicitly end painting to release resources immediately
         painter.end()
 

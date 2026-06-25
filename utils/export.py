@@ -1,14 +1,6 @@
-# utils/export.py
-# Fungsi export laporan reservasi ke CSV dan PDF
-
 import csv
 import os
 from datetime import datetime
-
-
-# ──────────────────────────────────────────────────────────────
-#  EXPORT CSV
-# ──────────────────────────────────────────────────────────────
 
 def export_csv(reservasi_list: list, filepath: str = None) -> str:
     """

@@ -1,21 +1,3 @@
-# ui/dosen/riwayat/riwayat_peminjaman.py
-"""
-Halaman Riwayat Peminjaman untuk dosen.
-
-Menampilkan semua reservasi milik user yang sudah selesai (status final):
-Selesai, Ditolak, Dibatalkan.
-
-Fitur:
-- Daftar riwayat dari Supabase (filter pengguna_id + status final)
-- Tampilkan: ruangan, tanggal, jam mulai-selesai, status, catatan admin
-- Filter by status (Semua / Selesai / Ditolak / Dibatalkan)
-- Filter by tanggal (rentang dari–sampai)
-- Tombol reset filter
-- Animasi fade-in staggered
-- Empty state
-"""
-
-
 from PySide6.QtCore import (
     Qt,
     QDate,

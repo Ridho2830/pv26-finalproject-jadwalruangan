@@ -1,17 +1,3 @@
-# ui/mahasiswa/peminjaman/reservasi_mahasiswa.py
-"""
-Halaman "Peminjaman Saya" untuk mahasiswa.
-Versi redesign modern mengikuti UI dashboard pada ZIP.
-
-Fitur tetap:
-- Refresh real-time dari Supabase
-- Batalkan booking
-- Ubah booking
-- Panel detail reservasi
-- Statistik reservasi
-- Animasi fade-in
-"""
-
 from functools import partial
 
 from PySide6.QtCore import (

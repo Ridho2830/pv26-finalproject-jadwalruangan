@@ -1,5 +1,3 @@
-# ui/mahasiswa/peminjaman/dialog_reservasi.py
-
 import os
 import uuid
 import mimetypes

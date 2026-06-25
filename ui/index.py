@@ -2,8 +2,8 @@ from datetime import datetime
 from PySide6.QtCore import QTimer, QDateTime, Qt
 from functools import partial
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, 
-                               QLabel, QPushButton, QFrame, 
-                               QGridLayout, QScrollArea, QScroller)
+                            QLabel, QPushButton, QFrame, 
+                            QGridLayout, QScrollArea, QScroller)
 
 # Impor komponen kustom dari utils
 from utils.components import CubeWidget
@@ -12,7 +12,7 @@ from utils.detail_ruangan import DetailRuanganPopup
 
 class StatusRuanganView(QWidget):
     def __init__(self, parent=None):
-        super().__init__(parent)
+        super().__init__(parent)    
         
         # Main Layout
         self.main_layout = QVBoxLayout(self)
