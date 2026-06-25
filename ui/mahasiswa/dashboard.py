@@ -234,6 +234,7 @@ class MahasiswaPage(QWidget):
         AVATAR_SIZE = 40
         self.lbl_profile_ava = QLabel()
         self.lbl_profile_ava.setFixedSize(AVATAR_SIZE, AVATAR_SIZE)
+        self.lbl_profile_ava.setStyleSheet("background: transparent; border: none;")
         self.lbl_profile_ava.setAlignment(Qt.AlignCenter)
 
         initials = "".join(w[0] for w in self.pengguna_nama.split() if w)[:2] or "MH"

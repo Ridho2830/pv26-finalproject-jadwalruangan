@@ -460,23 +460,57 @@ class RiwayatPeminjamanPage(QWidget):
         foto_row = QHBoxLayout()
         foto_row.setSpacing(16)
 
-        # Helper function untuk setup label gambar
         def setup_gambar_label(url, placeholder_text):
+            """Load foto dari URL Supabase, tampilkan preview + tombol buka browser."""
+            from PySide6.QtWidgets import QVBoxLayout, QWidget
+            from PySide6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+
+            container = QWidget()
+            container.setStyleSheet("background: transparent;")
+            vbox = QVBoxLayout(container)
+            vbox.setContentsMargins(0, 0, 0, 0)
+            vbox.setSpacing(8)
+
             lbl = QLabel()
             lbl.setAlignment(Qt.AlignCenter)
             lbl.setMinimumHeight(200)
+
             if url and url != "-":
-                pixmap = QPixmap(url)
-                if not pixmap.isNull():
-                    lbl.setPixmap(pixmap.scaled(260, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-                    lbl.setStyleSheet("background:white; border:1px solid #E5E7EB; border-radius:14px; padding:10px;")
-                else:
+                try:
+                    import requests
+                    resp = requests.get(url, timeout=10)
+                    if resp.status_code == 200:
+                        pixmap = QPixmap()
+                        pixmap.loadFromData(resp.content)
+                        if not pixmap.isNull():
+                            lbl.setPixmap(pixmap.scaled(260, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                            lbl.setStyleSheet("background:white; border:1px solid #E5E7EB; border-radius:14px; padding:10px;")
+                        else:
+                            raise ValueError("Pixmap null")
+                    else:
+                        raise ValueError(f"HTTP {resp.status_code}")
+                except Exception:
                     lbl.setText(f"🖼\n\n{placeholder_text} tidak dapat dibuka")
                     lbl.setStyleSheet("background:#F9FAFB; border:2px dashed #CBD5E1; border-radius:14px; color:#6B7280; font-size:14px; font-weight:600;")
+
+                btn_buka = QPushButton("🌐 Buka di Browser")
+                btn_buka.setCursor(Qt.PointingHandCursor)
+                btn_buka.setFixedHeight(32)
+                btn_buka.setStyleSheet(
+                    "QPushButton{background:#4f46e5;color:white;border:none;"
+                    "border-radius:8px;font-size:11px;font-weight:700;padding:0 10px;}"
+                    "QPushButton:hover{background:#4338ca;}"
+                )
+                btn_buka.clicked.connect(lambda checked=False, u=url: QDesktopServices.openUrl(QUrl(u)))
+                vbox.addWidget(lbl)
+                vbox.addWidget(btn_buka, alignment=Qt.AlignCenter)
             else:
                 lbl.setText(f"📷\n\nBelum ada {placeholder_text}")
                 lbl.setStyleSheet("background:#F9FAFB; border:2px dashed #CBD5E1; border-radius:14px; color:#94A3B8; font-size:14px; font-weight:600;")
-            return lbl
+                vbox.addWidget(lbl)
+
+            return container
 
         gambar_sebelum = setup_gambar_label(foto_sebelum, "Foto Sebelum")
         gambar_sesudah = setup_gambar_label(foto_sesudah, "Foto Sesudah")

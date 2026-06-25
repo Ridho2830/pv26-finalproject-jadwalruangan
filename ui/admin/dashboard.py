@@ -506,8 +506,10 @@ class AdminDashboard(QWidget):
         )
         sb.addWidget(brand)
 
+
         # ── Profile ──
-        prof = QFrame()
+        self.prof_frame = QFrame()
+        prof = self.prof_frame
         prof.setObjectName("AdminProfile")
         prof.setStyleSheet(
             "QFrame#AdminProfile {"
@@ -527,6 +529,7 @@ class AdminDashboard(QWidget):
         self.lbl_profile_ava = QLabel()
         self.lbl_profile_ava.setFixedSize(AVATAR_SIZE, AVATAR_SIZE)
         self.lbl_profile_ava.setAlignment(Qt.AlignCenter)
+        self.lbl_profile_ava.setStyleSheet("background: transparent; border: none;")
         # Coba load gambar, fallback ke inisial
         self._set_avatar_image("Admin", AVATAR_SIZE)
 
@@ -600,7 +603,6 @@ class AdminDashboard(QWidget):
             ("👥", "Kelola Pengguna"),
             ("📅", "Kelola Reservasi"),
             ("📊", "Statistik"),
-            ("⚙️", "Pengaturan"),
         ]
         for i, (icon, label) in enumerate(nav_items):
             btn = NavButton(icon, label, active=(i == 0))
@@ -795,6 +797,42 @@ class AdminDashboard(QWidget):
         icon  = "🌙" if self.is_dark else "☀️"
         label = " Terang" if self.is_dark else " Gelap"
         self.btn_theme.setText(icon + label)
+
+        # Warna teks sidebar menyesuaikan tema
+        if self.is_dark:
+            brand_color      = "white"
+            name_color       = "#f1f5f9"
+            role_color       = "#94a3b8"
+            profile_bg       = "background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; margin: 0 12px;"
+        else:
+            brand_color      = "#1e293b"
+            name_color       = "#1e293b"
+            role_color       = "#64748b"
+            profile_bg       = "background: rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.08); border-radius: 14px; margin: 0 12px;"
+
+        # Update brand label
+        if hasattr(self, 'brand_label'):
+            self.brand_label.setStyleSheet(
+                f"color: {brand_color}; font-size: 13px; font-weight: 800;"
+                "letter-spacing: 0.5px; padding: 0 20px 20px 8px;"
+                "background: transparent;"
+            )
+
+        # Update profile name & role
+        if hasattr(self, 'lbl_profile_name'):
+            self.lbl_profile_name.setStyleSheet(
+                f"font-size: 13px; font-weight: 700; color: {name_color}; background: transparent;"
+            )
+        if hasattr(self, 'lbl_profile_role'):
+            self.lbl_profile_role.setStyleSheet(
+                f"font-size: 10px; font-weight: 500; color: {role_color}; background: transparent;"
+            )
+
+        # Update profile card background
+        if hasattr(self, 'prof_frame'):
+            self.prof_frame.setStyleSheet(
+                f"QFrame#AdminProfile {{ {profile_bg} }}"
+            )
 
     def set_user_profile(self, user: dict):
         if not user: return
