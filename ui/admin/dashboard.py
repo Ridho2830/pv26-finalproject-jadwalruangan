@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QLayout, QStackedWidget, QGridLayout
 )
 from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QCursor, QPixmap, QBrush
-from utils.components import CubeWidget
+from utils.components import CubeWidget, ClickableFrame, make_initial_avatar
 from api.supabase import get_supabase_client
 from utils.chatbot import ChatbotDialog
 from utils.detail_hari import DayDetailPopup
@@ -65,27 +65,6 @@ def make_circular_pixmap(source: QPixmap, size: int) -> QPixmap:
     return result
 
 
-def make_initial_avatar(initials: str, size: int, bg_color: str = "#4f46e5") -> QPixmap:
-    """Fallback avatar dengan inisial huruf kalau gambar nggak ada."""
-    result = QPixmap(size, size)
-    result.fill(Qt.transparent)
-
-    painter = QPainter(result)
-    painter.setRenderHint(QPainter.Antialiasing, True)
-
-    # lingkaran background
-    painter.setBrush(QBrush(QColor(bg_color)))
-    painter.setPen(Qt.NoPen)
-    painter.drawEllipse(0, 0, size, size)
-
-    # teks inisial
-    font = QFont("Arial", int(size * 0.38), QFont.Bold)
-    painter.setFont(font)
-    painter.setPen(QColor("white"))
-    painter.drawText(QRect(0, 0, size, size), Qt.AlignCenter, initials.upper()[:2])
-
-    painter.end()
-    return result
 
 
 # ──────────────────────────────────────────────
@@ -296,117 +275,8 @@ class KpiCard(QFrame):
 
 
 # ──────────────────────────────────────────────
-#  DETAIL PANEL
-# ──────────────────────────────────────────────
-class RoomDetailPanel(QFrame):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setObjectName("DetailPanel")
-        self.setAttribute(Qt.WA_StyledBackground, True)
-        self.setFixedWidth(290)
-        self._build()
-
-    def _build(self):
-        root = QVBoxLayout(self)
-        root.setContentsMargins(20, 20, 20, 20)
-        root.setSpacing(12)
-
-        self.lbl_header = QLabel("Detail Ruangan")
-        self.lbl_header.setObjectName("PanelHeader")
-        root.addWidget(self.lbl_header)
-
-        self.cube_wrap = QHBoxLayout()
-        root.addLayout(self.cube_wrap)
-
-        self.lbl_name = QLabel("—")
-        self.lbl_name.setObjectName("PanelName")
-        self.lbl_name.setAlignment(Qt.AlignCenter)
-        root.addWidget(self.lbl_name)
-
-        self.lbl_status = QLabel("—")
-        self.lbl_status.setObjectName("PanelStatus")
-        self.lbl_status.setAlignment(Qt.AlignCenter)
-        self.lbl_status.setFixedHeight(28)
-        root.addWidget(self.lbl_status, alignment=Qt.AlignCenter)
-
-        root.addSpacing(8)
-
-        self.info_frame = QFrame()
-        self.info_frame.setObjectName("InfoBox")
-        info_layout = QVBoxLayout(self.info_frame)
-        info_layout.setContentsMargins(14, 12, 14, 12)
-        info_layout.setSpacing(8)
-
-        self.lbl_info_label = QLabel("PENGHUNI SAAT INI")
-        self.lbl_info_label.setObjectName("InfoLabel")
-        info_layout.addWidget(self.lbl_info_label)
-
-        self.lbl_user = QLabel("—")
-        self.lbl_user.setObjectName("InfoUser")
-        self.lbl_user.setWordWrap(True)
-        info_layout.addWidget(self.lbl_user)
-
-        root.addWidget(self.info_frame)
-
-        sched_frame = QFrame()
-        sched_frame.setObjectName("InfoBox")
-        sched_layout = QVBoxLayout(sched_frame)
-        sched_layout.setContentsMargins(14, 12, 14, 12)
-        sched_layout.setSpacing(6)
-
-        lbl_s = QLabel("JADWAL BERIKUTNYA")
-        lbl_s.setObjectName("InfoLabel")
-        sched_layout.addWidget(lbl_s)
-
-        self.lbl_sched = QLabel("14:00 – 16:00\nMateri: Kuliah Umum AI")
-        self.lbl_sched.setObjectName("InfoUser")
-        self.lbl_sched.setWordWrap(True)
-        sched_layout.addWidget(self.lbl_sched)
-        root.addWidget(sched_frame)
-
-        root.addStretch()
-
-        self.btn_book = QPushButton("📅  Buat Reservasi")
-        self.btn_book.setCursor(QCursor(Qt.PointingHandCursor))
-        self.btn_book.setFixedHeight(40)
-        root.addWidget(self.btn_book)
-
-    def load(self, data: dict, is_dark: bool):
-        status = normalize_status(data.get("status", "Tersedia"))
-        meta   = STATUS_META[status]
-
-        self.lbl_name.setText(data.get("nama", "Unknown"))
-
-        self.lbl_status.setText(f"  {meta['label']}  ")
-        self.lbl_status.setStyleSheet(
-            f"color:{meta['text']}; background:{meta['bg']};"
-            f"border-radius:12px; font-weight:700; font-size:12px;"
-        )
-
-        self.lbl_user.setText(
-            "Ahmad Gunawan\nHIMA – Kegiatan Mahasiswa"
-            if status != "Tersedia" else "Ruangan kosong"
-        )
-
-        for i in reversed(range(self.cube_wrap.count())):
-            w = self.cube_wrap.itemAt(i).widget()
-            if w: w.deleteLater()
-        cube = CubeWidget(meta["color"], should_animate=True)
-        cube.setFixedSize(120, 120)
-        self.cube_wrap.addWidget(cube, alignment=Qt.AlignCenter)
-
-    def apply_palette(self):
-        pass
-
-
-# ──────────────────────────────────────────────
 #  ADMIN DASHBOARD
 # ──────────────────────────────────────────────
-class ClickableFrame(QFrame):
-    clicked = Signal()
-    def mousePressEvent(self, event):
-        super().mousePressEvent(event)
-        self.clicked.emit()
 
 class AdminDashboard(QWidget):
     def __init__(self, parent=None):
@@ -1029,17 +899,12 @@ class AdminDashboard(QWidget):
     def _on_new_reservasi(self):
         self.switch_page(3)
         
-    def _on_buat_reservasi(self, ruangan_id: int):
-        self.switch_page(3)
 
 
     def show_day_detail(self, dt):
         day_res = [r for r in self.current_month_reservations if r.get("tanggal") == dt.strftime("%Y-%m-%d")]
         self.popup = DayDetailPopup(dt, self.room_map.values(), day_res, is_dark=self.is_dark, parent=self)
         self.popup.exec()
-
-    def show_room_detail(self, data: dict):
-        self.detail.load(data, self.is_dark)
 
     def show_chatbot(self):
         if not hasattr(self, "_chatbot") or self._chatbot is None:

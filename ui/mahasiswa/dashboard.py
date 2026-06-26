@@ -1,42 +1,20 @@
-from PySide6.QtCore import Qt, QRect, Signal, QTimer
+from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QFrame, QScrollArea, QSizePolicy,
     QStackedWidget, QGridLayout, QComboBox
 )
-from PySide6.QtGui import QColor, QFont, QPainter, QCursor, QPixmap, QBrush
+from PySide6.QtGui import QCursor
 
 from api.supabase import get_supabase_client
 from utils.chatbot import ChatbotDialog
 from utils.detail_hari import DayDetailPopup
 from utils.mode import theme_manager
+from utils.components import make_initial_avatar
 
 from ui.mahasiswa.peminjaman.reservasi_mahasiswa import ReservasiMahasiswaPage
 from ui.mahasiswa.Riwayat.riwayat_peminjaman import RiwayatPeminjamanPage
 from ui.mahasiswa.peminjaman.dialog_reservasi import DialogBuatReservasi
-
-
-# ──────────────────────────────────────────────
-#  HELPER: Avatar inisial
-# ──────────────────────────────────────────────
-def make_initial_avatar(initials: str, size: int, bg_color: str = "#22c55e") -> QPixmap:
-    result = QPixmap(size, size)
-    result.fill(Qt.transparent)
-
-    painter = QPainter(result)
-    painter.setRenderHint(QPainter.Antialiasing, True)
-
-    painter.setBrush(QBrush(QColor(bg_color)))
-    painter.setPen(Qt.NoPen)
-    painter.drawEllipse(0, 0, size, size)
-
-    font = QFont("Arial", int(size * 0.38), QFont.Bold)
-    painter.setFont(font)
-    painter.setPen(QColor("white"))
-    painter.drawText(QRect(0, 0, size, size), Qt.AlignCenter, initials.upper()[:2])
-
-    painter.end()
-    return result
 
 
 # ──────────────────────────────────────────────
@@ -104,14 +82,6 @@ class KpiCard(QFrame):
         self.lbl_value.setText(v)
 
 
-# ──────────────────────────────────────────────
-#  CLICKABLE FRAME
-# ──────────────────────────────────────────────
-class ClickableFrame(QFrame):
-    clicked = Signal()
-    def mousePressEvent(self, event):
-        super().mousePressEvent(event)
-        self.clicked.emit()
 
 
 # ──────────────────────────────────────────────

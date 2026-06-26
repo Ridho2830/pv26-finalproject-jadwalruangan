@@ -1,6 +1,24 @@
-from PySide6.QtWidgets import QWidget
-from PySide6.QtCore import Qt, QPoint
-from PySide6.QtGui import QPainter, QPolygon, QColor, QBrush, QLinearGradient, QRadialGradient
+from PySide6.QtWidgets import QWidget, QFrame
+from PySide6.QtCore import Qt, QPoint, QRect, Signal
+from PySide6.QtGui import QPainter, QPolygon, QColor, QBrush, QLinearGradient, QRadialGradient, QPixmap, QFont
+
+
+def make_initial_avatar(initials: str, size: int, bg_color: str = "#22c55e") -> QPixmap:
+    """Buat avatar lingkaran dengan inisial nama. Digunakan oleh semua role dashboard."""
+    result = QPixmap(size, size)
+    result.fill(Qt.transparent)
+    painter = QPainter(result)
+    painter.setRenderHint(QPainter.Antialiasing, True)
+    painter.setBrush(QBrush(QColor(bg_color)))
+    painter.setPen(Qt.NoPen)
+    painter.drawEllipse(0, 0, size, size)
+    font = QFont("Arial", int(size * 0.38), QFont.Bold)
+    painter.setFont(font)
+    painter.setPen(QColor("white"))
+    painter.drawText(QRect(0, 0, size, size), Qt.AlignCenter, initials.upper()[:2])
+    painter.end()
+    return result
+
 
 class CubeWidget(QWidget):
     def __init__(self, color_hex, should_animate=False, parent=None):
@@ -90,3 +108,12 @@ class CubeWidget(QWidget):
         
         painter.end()
 
+
+
+class ClickableFrame(QFrame):
+    """QFrame yang memancarkan sinyal clicked saat diklik. Digunakan di semua dashboard kalender."""
+    clicked = Signal()
+
+    def mousePressEvent(self, event):
+        super().mousePressEvent(event)
+        self.clicked.emit()

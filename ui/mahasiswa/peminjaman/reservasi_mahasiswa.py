@@ -38,7 +38,6 @@ class ReservasiMahasiswaPage(QWidget):
 
         self.reservasi_list = []
         self.cards = []
-        self.cards = []
 
         self._build_ui()
         self.refresh_data()
@@ -515,4 +514,3 @@ class ReservasiMahasiswaPage(QWidget):
                 except RuntimeError:
                     pass
                 widget.deleteLater()
-            
