@@ -439,33 +439,35 @@ class RiwayatPeminjamanPage(QWidget):
         foto_row = QHBoxLayout()
         foto_row.setSpacing(16)
 
+<<<<<<< HEAD
         def setup_gambar_label(url, judul_laporan):
             """Tampilkan tombol 'Klik untuk buka foto' tanpa load preview gambar."""
+=======
+        def setup_gambar_label(url, placeholder_text):
+            """Tampilkan tombol 'Klik untuk buka foto' tanpa load preview gambar."""
+            from PySide6.QtWidgets import QVBoxLayout, QWidget
+            from PySide6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+
+>>>>>>> b0b1fe92c20257acf71aec40492086d44172c6b8
             container = QWidget()
             container.setStyleSheet("background: transparent;")
             vbox = QVBoxLayout(container)
             vbox.setContentsMargins(0, 0, 0, 0)
             vbox.setSpacing(8)
 
-            lbl = QLabel(judul_laporan)
+            lbl = QLabel()
             lbl.setAlignment(Qt.AlignCenter)
-            lbl.setMinimumHeight(80)
-            lbl.setStyleSheet("""
-                QLabel{
-                    font-size:14px;
-                    font-weight:700;
-                    color:#374151;
-                    padding:12px;
-                    background:#F9FAFB;
-                    border:1px solid #E5E7EB;
-                    border-radius:10px;
-                }
-            """)
-            vbox.addWidget(lbl)
+            lbl.setMinimumHeight(200)
 
             if url and url != "-":
+<<<<<<< HEAD
                 lbl.setText("🔗 Klik untuk\nbuka foto")
                 lbl.setMinimumHeight(200)
+=======
+                # Tampilkan sebagai tombol klik, bukan preview gambar
+                lbl.setText("🔗 Klik untuk\nbuka foto")
+>>>>>>> b0b1fe92c20257acf71aec40492086d44172c6b8
                 lbl.setStyleSheet(
                     "background:#1e1b4b; border:2px solid #4f46e5; border-radius:14px;"
                     "color:#a5b4fc; font-size:14px; font-weight:600; padding:10px;"
@@ -475,40 +477,35 @@ class RiwayatPeminjamanPage(QWidget):
 
                 btn_buka = QPushButton("🌐 Buka di Browser")
                 btn_buka.setCursor(Qt.PointingHandCursor)
-                btn_buka.setFixedHeight(36)
-                btn_buka.setStyleSheet("""
-                    QPushButton{
-                        background:#4f46e5;
-                        color:white;
-                        border:none;
-                        border-radius:8px;
-                        font-size:12px;
-                        font-weight:700;
-                        padding:0 12px;
-                    }
-                    QPushButton:hover{
-                        background:#4338ca;
-                    }
-                """)
-                btn_buka.clicked.connect(
-                    lambda checked=False, u=url: QDesktopServices.openUrl(QUrl(u))
+                btn_buka.setFixedHeight(32)
+                btn_buka.setStyleSheet(
+                    "QPushButton{background:#4f46e5;color:white;border:none;"
+                    "border-radius:8px;font-size:11px;font-weight:700;padding:0 10px;}"
+                    "QPushButton:hover{background:#4338ca;}"
                 )
-                vbox.addWidget(btn_buka)
+                btn_buka.clicked.connect(lambda checked=False, u=url: QDesktopServices.openUrl(QUrl(u)))
+                vbox.addWidget(lbl)
+                vbox.addWidget(btn_buka, alignment=Qt.AlignCenter)
             else:
-                lbl_kosong = QLabel("Belum ada file.")
-                lbl_kosong.setAlignment(Qt.AlignCenter)
-                lbl_kosong.setStyleSheet(
-                    "color:#94A3B8; font-size:12px; background:transparent;"
-                )
-                vbox.addWidget(lbl_kosong)
+                lbl.setText(f"📷\n\nBelum ada {placeholder_text}")
+                lbl.setStyleSheet("background:#F9FAFB; border:2px dashed #CBD5E1; border-radius:14px; color:#94A3B8; font-size:14px; font-weight:600;")
+                vbox.addWidget(lbl)
 
             return container
 
+<<<<<<< HEAD
         laporan_sebelum = setup_gambar_label(foto_sebelum, "📄 Laporan Sebelum")
         laporan_sesudah = setup_gambar_label(foto_sesudah, "📄 Laporan Sesudah")
 
         foto_row.addWidget(laporan_sebelum)
         foto_row.addWidget(laporan_sesudah)
+=======
+        gambar_sebelum = setup_gambar_label(foto_sebelum, "Foto Sebelum")
+        gambar_sesudah = setup_gambar_label(foto_sesudah, "Foto Sesudah")
+
+        foto_row.addWidget(gambar_sebelum)
+        foto_row.addWidget(gambar_sesudah)
+>>>>>>> b0b1fe92c20257acf71aec40492086d44172c6b8
         bukti_layout.addLayout(foto_row)
 
         layout.addWidget(bukti_frame)
