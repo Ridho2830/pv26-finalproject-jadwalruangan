@@ -1,8 +1,9 @@
 from PySide6.QtCore import (
     Qt,
     QDate,
+    QUrl,
 )
-
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QWidget,
     QLabel,
@@ -17,6 +18,7 @@ from PySide6.QtWidgets import (
 
 from api.supabase import get_supabase_client
 from utils.mode import theme_manager
+from utils.worker import Worker
 
 
 # Status yang dianggap "riwayat" (sudah final / selesai)
@@ -205,14 +207,12 @@ class RiwayatPeminjamanPage(QWidget):
             return
             
         self.stats_lbl.setText("Memuat data...")
-        from utils.worker import Worker
         self.worker = Worker(self._fetch_riwayat_worker)
         self.worker.finished.connect(self._on_riwayat_fetched)
         self.worker.error.connect(self._on_error)
         self.worker.start()
 
     def _fetch_riwayat_worker(self):
-        from api.supabase import get_supabase_client
         supabase = get_supabase_client()
         result = supabase.table("reservasi").select(
             "*,ruangan(id,nama,gedung,lantai,kapasitas)",
@@ -328,16 +328,16 @@ class RiwayatPeminjamanPage(QWidget):
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(10)
 
-        ruangan    = reservasi.get("ruangan") or {}
+        ruangan      = reservasi.get("ruangan") or {}
         nama_ruangan = ruangan.get("nama", "-")
         gedung       = ruangan.get("gedung", "-")
         lantai       = ruangan.get("lantai", "-")
 
-        tanggal    = reservasi.get("tanggal", "-")
-        jam_mulai  = reservasi.get("jam_mulai", "-")
-        jam_selesai= reservasi.get("jam_selesai", "-")
-        keperluan  = reservasi.get("keperluan", "-") or "-"
-        status     = reservasi.get("status", "Selesai")
+        tanggal     = reservasi.get("tanggal", "-")
+        jam_mulai   = reservasi.get("jam_mulai", "-")
+        jam_selesai = reservasi.get("jam_selesai", "-")
+        keperluan   = reservasi.get("keperluan", "-") or "-"
+        status      = reservasi.get("status", "Selesai")
 
         # ---- baris atas: nama ruangan + badge status ----
         top_row = QHBoxLayout()
@@ -393,7 +393,6 @@ class RiwayatPeminjamanPage(QWidget):
         layout.addLayout(info_row)
 
         # ---- catatan admin (tampil hanya jika ada isi) ----
-        # Catatan admin bisa di kolom 'catatan_admin' atau 'catatan'
         catatan_admin = (
             reservasi.get("catatan_admin")
             or reservasi.get("catatan")
@@ -408,14 +407,10 @@ class RiwayatPeminjamanPage(QWidget):
             catatan_layout.setSpacing(10)
 
             icon_lbl = QLabel("💬")
-            icon_lbl.setStyleSheet(
-                "font-size:18px; background:transparent;"
-            )
+            icon_lbl.setStyleSheet("font-size:18px; background:transparent;")
             icon_lbl.setFixedWidth(28)
 
-            catatan_lbl = QLabel(
-                f"<b>Catatan Admin:</b> {catatan_admin}"
-            )
+            catatan_lbl = QLabel(f"<b>Catatan Admin:</b> {catatan_admin}")
             catatan_lbl.setObjectName("catatan_text")
             catatan_lbl.setTextFormat(Qt.RichText)
             catatan_lbl.setWordWrap(True)
@@ -444,10 +439,6 @@ class RiwayatPeminjamanPage(QWidget):
 
         def setup_gambar_label(url, placeholder_text):
             """Tampilkan tombol 'Klik untuk buka foto' tanpa load preview gambar."""
-            from PySide6.QtWidgets import QVBoxLayout, QWidget
-            from PySide6.QtGui import QDesktopServices
-            from PySide6.QtCore import QUrl
-
             container = QWidget()
             container.setStyleSheet("background: transparent;")
             vbox = QVBoxLayout(container)
@@ -459,7 +450,6 @@ class RiwayatPeminjamanPage(QWidget):
             lbl.setMinimumHeight(200)
 
             if url and url != "-":
-                # Tampilkan sebagai tombol klik, bukan preview gambar
                 lbl.setText("🔗 Klik untuk\nbuka foto")
                 lbl.setStyleSheet(
                     "background:#1e1b4b; border:2px solid #4f46e5; border-radius:14px;"
@@ -476,12 +466,17 @@ class RiwayatPeminjamanPage(QWidget):
                     "border-radius:8px;font-size:11px;font-weight:700;padding:0 10px;}"
                     "QPushButton:hover{background:#4338ca;}"
                 )
-                btn_buka.clicked.connect(lambda checked=False, u=url: QDesktopServices.openUrl(QUrl(u)))
+                btn_buka.clicked.connect(
+                    lambda checked=False, u=url: QDesktopServices.openUrl(QUrl(u))
+                )
                 vbox.addWidget(lbl)
                 vbox.addWidget(btn_buka, alignment=Qt.AlignCenter)
             else:
                 lbl.setText(f"📷\n\nBelum ada {placeholder_text}")
-                lbl.setStyleSheet("background:#F9FAFB; border:2px dashed #CBD5E1; border-radius:14px; color:#94A3B8; font-size:14px; font-weight:600;")
+                lbl.setStyleSheet(
+                    "background:#F9FAFB; border:2px dashed #CBD5E1; border-radius:14px;"
+                    "color:#94A3B8; font-size:14px; font-weight:600;"
+                )
                 vbox.addWidget(lbl)
 
             return container

@@ -1,8 +1,9 @@
 from PySide6.QtCore import (
     Qt,
     QDate,
+    QUrl,
 )
-
+from PySide6.QtGui import QDesktopServices, QPixmap
 from PySide6.QtWidgets import (
     QWidget,
     QLabel,
@@ -15,8 +16,11 @@ from PySide6.QtWidgets import (
     QDateEdit,
 )
 
+import requests
+
 from api.supabase import get_supabase_client
 from utils.mode import theme_manager
+from utils.worker import Worker
 
 
 # Status yang dianggap "riwayat" (sudah final / selesai)
@@ -205,14 +209,12 @@ class RiwayatPeminjamanPage(QWidget):
             return
             
         self.stats_lbl.setText("Memuat data...")
-        from utils.worker import Worker
         self.worker = Worker(self._fetch_riwayat_worker)
         self.worker.finished.connect(self._on_riwayat_fetched)
         self.worker.error.connect(self._on_error)
         self.worker.start()
 
     def _fetch_riwayat_worker(self):
-        from api.supabase import get_supabase_client
         supabase = get_supabase_client()
         result = supabase.table("reservasi").select(
             "*,ruangan(id,nama,gedung,lantai,kapasitas)",
@@ -328,16 +330,16 @@ class RiwayatPeminjamanPage(QWidget):
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(10)
 
-        ruangan    = reservasi.get("ruangan") or {}
+        ruangan      = reservasi.get("ruangan") or {}
         nama_ruangan = ruangan.get("nama", "-")
         gedung       = ruangan.get("gedung", "-")
         lantai       = ruangan.get("lantai", "-")
 
-        tanggal    = reservasi.get("tanggal", "-")
-        jam_mulai  = reservasi.get("jam_mulai", "-")
-        jam_selesai= reservasi.get("jam_selesai", "-")
-        keperluan  = reservasi.get("keperluan", "-") or "-"
-        status     = reservasi.get("status", "Selesai")
+        tanggal     = reservasi.get("tanggal", "-")
+        jam_mulai   = reservasi.get("jam_mulai", "-")
+        jam_selesai = reservasi.get("jam_selesai", "-")
+        keperluan   = reservasi.get("keperluan", "-") or "-"
+        status      = reservasi.get("status", "Selesai")
 
         # ---- baris atas: nama ruangan + badge status ----
         top_row = QHBoxLayout()
@@ -393,7 +395,6 @@ class RiwayatPeminjamanPage(QWidget):
         layout.addLayout(info_row)
 
         # ---- catatan admin (tampil hanya jika ada isi) ----
-        # Catatan admin bisa di kolom 'catatan_admin' atau 'catatan'
         catatan_admin = (
             reservasi.get("catatan_admin")
             or reservasi.get("catatan")
@@ -408,14 +409,10 @@ class RiwayatPeminjamanPage(QWidget):
             catatan_layout.setSpacing(10)
 
             icon_lbl = QLabel("💬")
-            icon_lbl.setStyleSheet(
-                "font-size:18px; background:transparent;"
-            )
+            icon_lbl.setStyleSheet("font-size:18px; background:transparent;")
             icon_lbl.setFixedWidth(28)
 
-            catatan_lbl = QLabel(
-                f"<b>Catatan Admin:</b> {catatan_admin}"
-            )
+            catatan_lbl = QLabel(f"<b>Catatan Admin:</b> {catatan_admin}")
             catatan_lbl.setObjectName("catatan_text")
             catatan_lbl.setTextFormat(Qt.RichText)
             catatan_lbl.setWordWrap(True)
@@ -442,12 +439,8 @@ class RiwayatPeminjamanPage(QWidget):
         foto_row = QHBoxLayout()
         foto_row.setSpacing(16)
 
-        def setup_gambar_label(url, placeholder_text):
-            """Load foto dari URL Supabase, tampilkan preview + tombol buka browser."""
-            from PySide6.QtWidgets import QVBoxLayout, QWidget
-            from PySide6.QtGui import QDesktopServices
-            from PySide6.QtCore import QUrl
-
+        def setup_gambar_label(url, judul_laporan):
+            """Tampilkan tombol 'Klik untuk buka foto' tanpa load preview gambar."""
             container = QWidget()
             container.setStyleSheet("background: transparent;")
             vbox = QVBoxLayout(container)
@@ -471,25 +464,15 @@ class RiwayatPeminjamanPage(QWidget):
             vbox.addWidget(lbl)
 
             if url and url != "-":
-                # Coba download dari URL
-                try:
-                    import requests
-                    resp = requests.get(url, timeout=10)
-                    if resp.status_code == 200:
-                        pixmap = QPixmap()
-                        pixmap.loadFromData(resp.content)
-                        if not pixmap.isNull():
-                            lbl.setPixmap(pixmap.scaled(260, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-                            lbl.setStyleSheet("background:white; border:1px solid #E5E7EB; border-radius:14px; padding:10px;")
-                        else:
-                            raise ValueError("Pixmap null")
-                    else:
-                        raise ValueError(f"HTTP {resp.status_code}")
-                except Exception:
-                    lbl.setText(f"🖼\n\n{placeholder_text} tidak dapat dibuka")
-                    lbl.setStyleSheet("background:#F9FAFB; border:2px dashed #CBD5E1; border-radius:14px; color:#6B7280; font-size:14px; font-weight:600;")
+                lbl.setText("🔗 Klik untuk\nbuka foto")
+                lbl.setMinimumHeight(200)
+                lbl.setStyleSheet(
+                    "background:#1e1b4b; border:2px solid #4f46e5; border-radius:14px;"
+                    "color:#a5b4fc; font-size:14px; font-weight:600; padding:10px;"
+                )
+                lbl.setCursor(Qt.PointingHandCursor)
+                lbl.mousePressEvent = lambda event, u=url: QDesktopServices.openUrl(QUrl(u))
 
-                # Tombol buka di browser
                 btn_buka = QPushButton("🌐 Buka di Browser")
                 btn_buka.setCursor(Qt.PointingHandCursor)
                 btn_buka.setFixedHeight(36)
@@ -521,13 +504,8 @@ class RiwayatPeminjamanPage(QWidget):
 
             return container
 
-        laporan_sebelum = setup_gambar_label(
-            foto_sebelum,"📄 Laporan Sebelum"
-        )
-
-        laporan_sesudah = setup_gambar_label(
-            foto_sesudah,"📄 Laporan Sesudah"
-        )
+        laporan_sebelum = setup_gambar_label(foto_sebelum, "📄 Laporan Sebelum")
+        laporan_sesudah = setup_gambar_label(foto_sesudah, "📄 Laporan Sesudah")
 
         foto_row.addWidget(laporan_sebelum)
         foto_row.addWidget(laporan_sesudah)
