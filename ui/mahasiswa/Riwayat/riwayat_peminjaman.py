@@ -2,7 +2,7 @@ from PySide6.QtCore import (
     Qt,
     QDate,
 )
-from PySide6.QtGui import QPixmap
+
 from PySide6.QtWidgets import (
     QWidget,
     QLabel,
@@ -443,7 +443,7 @@ class RiwayatPeminjamanPage(QWidget):
         foto_row.setSpacing(16)
 
         def setup_gambar_label(url, placeholder_text):
-            """Load foto dari URL Supabase, tampilkan preview + tombol buka browser."""
+            """Tampilkan tombol 'Klik untuk buka foto' tanpa load preview gambar."""
             from PySide6.QtWidgets import QVBoxLayout, QWidget
             from PySide6.QtGui import QDesktopServices
             from PySide6.QtCore import QUrl
@@ -459,23 +459,14 @@ class RiwayatPeminjamanPage(QWidget):
             lbl.setMinimumHeight(200)
 
             if url and url != "-":
-                # Coba download dari URL
-                try:
-                    import requests
-                    resp = requests.get(url, timeout=10)
-                    if resp.status_code == 200:
-                        pixmap = QPixmap()
-                        pixmap.loadFromData(resp.content)
-                        if not pixmap.isNull():
-                            lbl.setPixmap(pixmap.scaled(260, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
-                            lbl.setStyleSheet("background:white; border:1px solid #E5E7EB; border-radius:14px; padding:10px;")
-                        else:
-                            raise ValueError("Pixmap null")
-                    else:
-                        raise ValueError(f"HTTP {resp.status_code}")
-                except Exception:
-                    lbl.setText(f"🖼\n\n{placeholder_text} tidak dapat dibuka")
-                    lbl.setStyleSheet("background:#F9FAFB; border:2px dashed #CBD5E1; border-radius:14px; color:#6B7280; font-size:14px; font-weight:600;")
+                # Tampilkan sebagai tombol klik, bukan preview gambar
+                lbl.setText("🔗 Klik untuk\nbuka foto")
+                lbl.setStyleSheet(
+                    "background:#1e1b4b; border:2px solid #4f46e5; border-radius:14px;"
+                    "color:#a5b4fc; font-size:14px; font-weight:600; padding:10px;"
+                )
+                lbl.setCursor(Qt.PointingHandCursor)
+                lbl.mousePressEvent = lambda event, u=url: QDesktopServices.openUrl(QUrl(u))
 
                 # Tombol buka di browser
                 btn_buka = QPushButton("🌐 Buka di Browser")
