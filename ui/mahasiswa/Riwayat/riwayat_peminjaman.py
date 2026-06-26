@@ -2,7 +2,7 @@ from PySide6.QtCore import (
     Qt,
     QDate,
 )
-from PySide6.QtGui import QPixmap
+
 from PySide6.QtWidgets import (
     QWidget,
     QLabel,
@@ -442,7 +442,7 @@ class RiwayatPeminjamanPage(QWidget):
         foto_row = QHBoxLayout()
         foto_row.setSpacing(16)
 
-        def setup_gambar_label(url, judul_laporan):
+        def setup_gambar_label(url, placeholder_text):
             """Load foto dari URL Supabase, tampilkan preview + tombol buka browser."""
             from PySide6.QtWidgets import QVBoxLayout, QWidget
             from PySide6.QtGui import QDesktopServices
@@ -471,6 +471,25 @@ class RiwayatPeminjamanPage(QWidget):
             vbox.addWidget(lbl)
 
             if url and url != "-":
+                # Coba download dari URL
+                try:
+                    import requests
+                    resp = requests.get(url, timeout=10)
+                    if resp.status_code == 200:
+                        pixmap = QPixmap()
+                        pixmap.loadFromData(resp.content)
+                        if not pixmap.isNull():
+                            lbl.setPixmap(pixmap.scaled(260, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                            lbl.setStyleSheet("background:white; border:1px solid #E5E7EB; border-radius:14px; padding:10px;")
+                        else:
+                            raise ValueError("Pixmap null")
+                    else:
+                        raise ValueError(f"HTTP {resp.status_code}")
+                except Exception:
+                    lbl.setText(f"🖼\n\n{placeholder_text} tidak dapat dibuka")
+                    lbl.setStyleSheet("background:#F9FAFB; border:2px dashed #CBD5E1; border-radius:14px; color:#6B7280; font-size:14px; font-weight:600;")
+
+                # Tombol buka di browser
                 btn_buka = QPushButton("🌐 Buka di Browser")
                 btn_buka.setCursor(Qt.PointingHandCursor)
                 btn_buka.setFixedHeight(36)
