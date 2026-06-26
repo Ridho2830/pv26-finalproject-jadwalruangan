@@ -12,7 +12,7 @@ from utils.detail_hari import DayDetailPopup
 from utils.mode import theme_manager
 
 from ui.mahasiswa.peminjaman.reservasi_mahasiswa import ReservasiMahasiswaPage
-from ui.mahasiswa.riwayat.riwayat_peminjaman import RiwayatPeminjamanPage
+from ui.mahasiswa.Riwayat.riwayat_peminjaman import RiwayatPeminjamanPage
 from ui.mahasiswa.peminjaman.dialog_reservasi import DialogBuatReservasi
 
 
@@ -465,7 +465,7 @@ class MahasiswaPage(QWidget):
             self.setStyleSheet(stylesheet)
 
         icon = "🌙" if self.is_dark else "☀️"
-        label = " Terang" if self.is_dark else " Gelap"
+        label = " Gelap" if self.is_dark else " Terang"
         self.btn_theme.setText(icon + label)
 
     # ─── DATA & RENDERING ───────────────────────

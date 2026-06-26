@@ -465,7 +465,7 @@ class DosenPage(QWidget):
             self.setStyleSheet(stylesheet)
 
         icon = "🌙" if self.is_dark else "☀️"
-        label = " Terang" if self.is_dark else " Gelap"
+        label = " Gelap" if self.is_dark else " Terang"
         self.btn_theme.setText(icon + label)
 
     # ─── DATA & RENDERING ───────────────────────

@@ -784,8 +784,8 @@ class AdminDashboard(QWidget):
         if stylesheet:
             self.setStyleSheet(stylesheet)
 
-        icon  = "🌙" if self.is_dark else "☀️"
-        label = " Terang" if self.is_dark else " Gelap"
+        icon = "🌙" if self.is_dark else "☀️"
+        label = " Gelap" if self.is_dark else " Terang"
         self.btn_theme.setText(icon + label)
 
         # Warna teks sidebar menyesuaikan tema
