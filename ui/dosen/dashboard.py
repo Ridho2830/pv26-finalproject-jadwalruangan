@@ -9,8 +9,8 @@ from PySide6.QtGui import QCursor
 from api.supabase import get_supabase_client
 from utils.chatbot import ChatbotDialog
 from utils.detail_hari import DayDetailPopup
+from utils.components import ClickableFrame, make_initial_avatar
 from utils.mode import theme_manager
-from utils.components import make_initial_avatar
 
 from ui.dosen.peminjaman.reservasi_dosen import ReservasiDosenPage
 from ui.dosen.riwayat.riwayat_peminjaman import RiwayatPeminjamanPage
@@ -463,7 +463,6 @@ class DosenPage(QWidget):
             print("Error parsing dates:", e)
 
     def _fetch_dashboard_data(self, start_date_str, end_date_str):
-        from api.supabase import get_supabase_client
         supabase = get_supabase_client()
         rooms = supabase.table("ruangan").select() or []
         all_res = supabase.table("reservasi").select(

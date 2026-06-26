@@ -10,7 +10,7 @@ from api.supabase import get_supabase_client
 from utils.chatbot import ChatbotDialog
 from utils.detail_hari import DayDetailPopup
 from utils.mode import theme_manager
-from utils.components import make_initial_avatar
+from utils.components import ClickableFrame, make_initial_avatar
 
 from ui.mahasiswa.peminjaman.reservasi_mahasiswa import ReservasiMahasiswaPage
 from ui.mahasiswa.Riwayat.riwayat_peminjaman import RiwayatPeminjamanPage
@@ -463,7 +463,6 @@ class MahasiswaPage(QWidget):
             print("Error parsing dates:", e)
 
     def _fetch_dashboard_data(self, start_date_str, end_date_str):
-        from api.supabase import get_supabase_client
         supabase = get_supabase_client()
         rooms = supabase.table("ruangan").select() or []
         # Ambil SEMUA reservasi bulan ini (tanpa filter pengguna_id)

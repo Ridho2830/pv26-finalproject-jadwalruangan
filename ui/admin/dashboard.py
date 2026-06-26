@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QPushButton, QFrame, QScrollArea, QSizePolicy,
     QLayout, QStackedWidget, QGridLayout
 )
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QCursor, QPixmap, QBrush
+from PySide6.QtGui import QPainter, QPainterPath, QCursor, QPixmap
 from utils.components import CubeWidget, ClickableFrame, make_initial_avatar
 from api.supabase import get_supabase_client
 from utils.chatbot import ChatbotDialog
@@ -738,7 +738,6 @@ class AdminDashboard(QWidget):
             print("Error parsing dates:", e)
 
     def _fetch_dashboard_data(self, start_date_str, end_date_str):
-        from api.supabase import get_supabase_client
         supabase = get_supabase_client()
         rooms = supabase.table("ruangan").select() or []
         users = supabase.table("pengguna").select() or []
